@@ -8,11 +8,20 @@ export default function User() {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        // Fetch user data based on the id parameter
-        fetch(`https://localhost:7186/users/${id}`)
+        const token = localStorage.getItem("authToken");
+        if (!token) {
+            navigate("/Login");
+            return;
+        }
+
+        fetch(`https://localhost:7186/users/${id}`, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        })
             .then((response) => {
                 if (response.status === 404) {
-                    navigate("*"); // Navigate to NoPage
+                    navigate("../404");
                     return;
                 }
                 if (!response.ok) {
