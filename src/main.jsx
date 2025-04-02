@@ -7,6 +7,7 @@ import NoPage from "./pages/NoPage";
 import User from "./pages/User";
 import SignUp from "./pages/SignUp";
 import Login from "./pages/Login";
+import "./index.css";
 
 export default function App() {
   return (
