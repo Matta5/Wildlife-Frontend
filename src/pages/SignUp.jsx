@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const SignUp = () => {
     const [formData, setFormData] = useState({
@@ -58,7 +58,7 @@ const SignUp = () => {
     };
 
     return (
-        <div className="flex justify-center items-center min-h-[calc(100vh-112px)] bg-black text-white">
+        <div className="flex justify-center items-center min-h-[calc(100vh-112px)] bg-black text-white ">
             <form onSubmit={handleSubmit} className="bg-black p-6 rounded border border-white max-w-md w-full">
                 {error && <div className="bg-red-500 text-white p-2 rounded mb-4">{error}</div>}
                 {success && <div className="bg-green-500 text-white p-2 rounded mb-4">{success}</div>}
@@ -111,8 +111,10 @@ const SignUp = () => {
                         required
                     />
                 </div>
-                <button type="submit" className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 rounded">Sign Up</button>
+                <button type="submit" className="w-full font-medium bg-white text-black hover:bg-gray-200 focus:outline-2 focus:outline-offset-2 focus:outline-white active:bg-gray-200 py-2 rounded">Create account</button>
+                <p className="text-center mt-4">Already have account? <Link to="/Login" className="hover:underline">Login</Link></p>
             </form>
+
         </div>
     );
 };

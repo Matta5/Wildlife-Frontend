@@ -4,13 +4,13 @@ import { Link } from "react-router-dom";
 const Home = () => {
     return (
         <div>
-            <section className="hero bg-black py-10">
+            <section className="hero bg-black pt-35 pb-20">
                 <div className="container mx-auto text-center">
                     <h1 className="text-4xl font-bold text-white mb-4">Document and Share Your Nature Observations</h1>
                     <p className="text-lg text-white mb-6">Join our community of nature enthusiasts to identify species, share discoveries, and learn about biodiversity.</p>
                     <div className="flex justify-center gap-4">
-                        <Link to="/SignUp" className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded text-lg">Get Started</Link>
-                        <Link to="/Observations" className="border border-gray-500 text-white py-2 px-4 rounded text-lg hover:bg-gray-700">Browse Observations</Link>
+                        <Link to="/SignUp" className="px-4 py-2 bg-white text-black rounded hover:bg-gray-200 focus:outline-2 focus:outline-offset-2 focus:outline-white active:bg-gray-200">Get Started</Link>
+                        <Link to="/Observations" className="border border-gray-500 text-white py-2 px-4 rounded text-lg hover:bg-neutral-950">Browse Observations</Link>
                     </div>
                 </div>
             </section>

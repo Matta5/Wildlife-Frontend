@@ -7,6 +7,8 @@ import NoPage from "./pages/NoPage";
 import User from "./pages/User";
 import SignUp from "./pages/SignUp";
 import Login from "./pages/Login";
+import Recognition from "./pages/Recognition";
+import Species from "./pages/Species";
 import "./index.css";
 
 export default function App() {
@@ -18,7 +20,9 @@ export default function App() {
           <Route path="observations" element={<Observations />} />
           <Route path="login" element={<Login />} />
           <Route path="signup" element={<SignUp />} />
-          <Route path='users/:id' element={<User />} />
+          <Route path="users/:id" element={<User />} />
+          <Route path="recognition" element={<Recognition />} />
+          <Route path="species" element={<Species />} />
           <Route path="*" element={<NoPage />} />
         </Route>
       </Routes>

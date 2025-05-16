@@ -1,0 +1,10 @@
+module.exports = {
+    theme: {
+        extend: {
+            fontFamily: {
+                sans: ['"Segoe UI"', 'ui-sans-serif', 'system-ui', 'sans-serif', '"Apple Color Emoji"', '"Segoe UI Emoji"', '"Segoe UI Symbol"', '"Noto Color Emoji"'],
+            },
+
+        },
+    },
+};
