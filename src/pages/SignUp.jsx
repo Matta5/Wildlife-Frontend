@@ -1,5 +1,8 @@
 import { useState } from "react";
+import { toast } from 'react-toastify';
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import axiosClient from '../API/axiosClient';
 
 const SignUp = () => {
     const [formData, setFormData] = useState({
@@ -10,58 +13,80 @@ const SignUp = () => {
     });
 
     const [error, setError] = useState("");
-    const [success, setSuccess] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+
+    const navigate = useNavigate();
+    const { checkAuthStatus } = useAuth();
 
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData({ ...formData, [name]: value });
     };
 
+    const notifySuccess = () => {
+        toast.success("Sign-up successful!", {
+            position: "top-right",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+        });
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
-        setSuccess("");
+        setIsLoading(true);
 
+        // Password validation
         if (formData.password !== formData.confirmPassword) {
             setError("Passwords do not match.");
+            setIsLoading(false);
             return;
         }
 
         try {
-            const response = await fetch("https://localhost:7186/users", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    username: formData.username,
-                    email: formData.email,
-                    password: formData.password,
-                }),
+            // Use your axiosClient instead of raw axios for consistent settings
+            await axiosClient.post("/users", {
+                username: formData.username,
+                email: formData.email,
+                password: formData.password,
             });
 
-            if (response.ok) {
-                setSuccess("Sign-up successful!");
-                setFormData({
-                    username: "",
-                    email: "",
-                    password: "",
-                    confirmPassword: "",
-                });
-            } else {
-                const errorData = await response.json();
-                setError(errorData.message || "Sign-up failed.");
-            }
+            // Notify user of success
+            notifySuccess();
+
+            // Reset form data
+            setFormData({
+                username: "",
+                email: "",
+                password: "",
+                confirmPassword: "",
+            });
+
+            // Important: Update authentication status after registration
+            await checkAuthStatus();
+
+            // Navigate to account page after successful signup and auth check
+            navigate("/Account");
         } catch (err) {
-            setError("An error occurred. Please try again.");
+            if (err.response && err.response.data && err.response.data.message) {
+                setError(err.response.data.message);
+            } else {
+                setError("An error occurred. Please try again.");
+                console.error("Signup error:", err);
+            }
+        } finally {
+            setIsLoading(false);
         }
     };
 
     return (
-        <div className="flex justify-center items-center min-h-[calc(100vh-112px)] bg-black text-white ">
+        <div className="flex justify-center items-center min-h-[calc(100vh-112px)] bg-black text-white">
             <form onSubmit={handleSubmit} className="bg-black p-6 rounded border border-white max-w-md w-full">
                 {error && <div className="bg-red-500 text-white p-2 rounded mb-4">{error}</div>}
-                {success && <div className="bg-green-500 text-white p-2 rounded mb-4">{success}</div>}
                 <h1 className="text-center text-white text-2xl font-bold mb-6">Create an account</h1>
                 <div className="mb-4">
                     <input
@@ -73,6 +98,7 @@ const SignUp = () => {
                         value={formData.username}
                         onChange={handleChange}
                         required
+                        disabled={isLoading}
                     />
                 </div>
                 <div className="mb-4">
@@ -85,6 +111,7 @@ const SignUp = () => {
                         value={formData.email}
                         onChange={handleChange}
                         required
+                        disabled={isLoading}
                     />
                 </div>
                 <div className="mb-4">
@@ -97,6 +124,7 @@ const SignUp = () => {
                         value={formData.password}
                         onChange={handleChange}
                         required
+                        disabled={isLoading}
                     />
                 </div>
                 <div className="mb-4">
@@ -109,12 +137,18 @@ const SignUp = () => {
                         value={formData.confirmPassword}
                         onChange={handleChange}
                         required
+                        disabled={isLoading}
                     />
                 </div>
-                <button type="submit" className="w-full font-medium bg-white text-black hover:bg-gray-200 focus:outline-2 focus:outline-offset-2 focus:outline-white active:bg-gray-200 py-2 rounded">Create account</button>
+                <button
+                    type="submit"
+                    className="w-full font-medium bg-white text-black hover:bg-gray-200 focus:outline-2 focus:outline-offset-2 focus:outline-white active:bg-gray-200 py-2 rounded"
+                    disabled={isLoading}
+                >
+                    {isLoading ? "Creating account..." : "Create account"}
+                </button>
                 <p className="text-center mt-4">Already have account? <Link to="/Login" className="hover:underline">Login</Link></p>
             </form>
-
         </div>
     );
 };

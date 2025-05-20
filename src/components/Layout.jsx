@@ -1,14 +1,15 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
 
 const Layout = () => {
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const { isAuthenticated, logout, checkAuthStatus } = useAuth();
     const location = useLocation();
 
+    // Force a re-check of auth status when the component mounts
     useEffect(() => {
-        const token = localStorage.getItem("authToken");
-        setIsLoggedIn(!!token);
-    }, []);
+        checkAuthStatus();
+    }, [checkAuthStatus]);
 
     return (
         <div className="flex flex-col min-h-screen">
@@ -44,15 +45,17 @@ const Layout = () => {
                                 Recognition
                             </Link>
                         </li>
-                        {isLoggedIn ? (
-                            <li>
-                                <Link
-                                    to="/User"
-                                    className={`hover:underline ${location.pathname === "/User" ? "underline font-bold" : ""}`}
-                                >
-                                    Account
-                                </Link>
-                            </li>
+                        {isAuthenticated ? (
+                            <>
+                                <li>
+                                    <Link
+                                        to="/Account"
+                                        className={`hover:underline ${location.pathname === "/Account" ? "underline font-bold" : ""}`}
+                                    >
+                                        Account
+                                    </Link>
+                                </li>
+                            </>
                         ) : (
                             <>
                                 <li>
@@ -73,7 +76,7 @@ const Layout = () => {
                         )}
                     </ul>
                 </div>
-            </nav >
+            </nav>
 
             <div className="flex-grow mt-14 bg-black">
                 <Outlet />
@@ -84,7 +87,7 @@ const Layout = () => {
                     <p>&copy; 2025 Wildlife. All rights reserved.</p>
                 </div>
             </footer>
-        </div >
+        </div>
     );
 };
 
