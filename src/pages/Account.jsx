@@ -66,7 +66,14 @@ export default function AccountPage() {
             <div className="bg-zinc-900 shadow rounded-lg p-6">
                 <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
                     <div className="relative">
-                        <div className="h-24 w-24 rounded-full overflow-hidden bg-gray-700" />
+                        <div className="h-24 w-24 rounded-full overflow-hidden bg-gray-700">
+                            {user.profilePicture && (
+                                <img
+                                    src={user.profilePicture}
+                                    className="h-full w-full object-cover"
+                                />
+                            )}
+                        </div>
                     </div>
 
                     <div className="flex-1 space-y-1">

@@ -21,10 +21,8 @@ export const AuthProvider = ({ children }) => {
             setUser(response.data);
             setIsAuthenticated(true);
         } catch (error) {
-            // Als de verificatie faalt, beschouwen we de gebruiker als niet-ingelogd
             setUser(null);
             setIsAuthenticated(false);
-            // Optionally clear any auth tokens from localStorage here if you're using them
             localStorage.removeItem("authToken");
         } finally {
             setIsLoading(false);

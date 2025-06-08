@@ -4,17 +4,15 @@ import axios from 'axios';
 // Basis API URL
 const BASE_URL = 'http://localhost:7186';
 
-// Axios instance aanmaken
 const axiosClient = axios.create({
     baseURL: BASE_URL,
     timeout: 10000,
-    withCredentials: true, // Zorgt ervoor dat cookies worden meegestuurd
+    withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
     },
 });
 
-// Flag om bij te houden of we momenteel een token refresh uitvoeren
 let isRefreshing = false;
 // Queue voor requests die wachten op een token refresh
 let refreshSubscribers = [];
