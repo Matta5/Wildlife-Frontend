@@ -1,8 +1,6 @@
-// api/axiosClient.js
 import axios from 'axios';
 
-// Basis API URL
-const BASE_URL = 'http://localhost:7186';
+const BASE_URL = 'http://localhost:7186'; // Fixed typo
 
 const axiosClient = axios.create({
     baseURL: BASE_URL,
@@ -14,68 +12,66 @@ const axiosClient = axios.create({
 });
 
 let isRefreshing = false;
-// Queue voor requests die wachten op een token refresh
 let refreshSubscribers = [];
 
-// Functie om subscribers te notificeren zodra het token is ververst
 const onRefreshed = () => {
     refreshSubscribers.forEach(callback => callback());
     refreshSubscribers = [];
 };
 
-// Functie om een nieuwe subscriber toe te voegen tijdens token refresh
 const addSubscriber = callback => {
     refreshSubscribers.push(callback);
 };
 
-// Event voor authenticatieproblemen
+// Auth event system
 export const authEvents = {
     listeners: {},
 
-    // Event wanneer authenticatie mislukt
     onAuthFailed: (callback) => {
         const id = Math.random().toString(36).substring(2, 9);
         authEvents.listeners[id] = callback;
         return id;
     },
 
-    // Verwijder een listener
     removeListener: (id) => {
         delete authEvents.listeners[id];
     },
 
-    // Trigger alle auth error listeners
     triggerAuthFailed: () => {
-        Object.values(authEvents.listeners).forEach(callback => callback());
+        Object.values(authEvents.listeners).forEach(callback => {
+            try {
+                callback();
+            } catch (error) {
+                console.error('Auth event callback error:', error);
+            }
+        });
     }
 };
 
 // Request interceptor
 axiosClient.interceptors.request.use(
-    async config => {
-        return config;
-    },
-    error => {
-        return Promise.reject(error);
-    }
+    config => config,
+    error => Promise.reject(error)
 );
 
 // Response interceptor
 axiosClient.interceptors.response.use(
-    response => {
-        return response;
-    },
+    response => response,
     async error => {
         const originalRequest = error.config;
+        const status = error.response?.status;
+        const url = originalRequest?.url;
 
-        // Als we een 401 krijgen en het is geen retry van de refresh token endpoint
-        if (error.response?.status === 401 && !originalRequest._retry && originalRequest.url !== '/auth/refresh') {
+        const isAuthRequest =
+            url?.includes('/auth/login') ||
+            url?.includes('/auth/register') ||
+            url?.includes('/auth/refresh');
+
+        // Only refresh token for 401s on non-auth requests
+        if (status === 401 && !originalRequest._retry && !isAuthRequest) {
             if (isRefreshing) {
-                // Als al een refresh bezig is, voeg deze request toe aan de wachtrij
                 return new Promise(resolve => {
-                    addSubscriber(() => {
-                        resolve(axiosClient(originalRequest));
-                    });
+                    addSubscriber(() => resolve(axiosClient(originalRequest)));
                 });
             }
 
@@ -83,27 +79,25 @@ axiosClient.interceptors.response.use(
             isRefreshing = true;
 
             try {
-                // Refresh token proberen
                 await axiosClient.post('/auth/refresh', {}, {
                     withCredentials: true,
-                }
+                });
 
-                );
-
-                // Token is ververst, alle wachtende requests uitvoeren
-                onRefreshed();
                 isRefreshing = false;
+                onRefreshed();
 
-                // Originele request opnieuw uitvoeren
                 return axiosClient(originalRequest);
             } catch (refreshError) {
                 isRefreshing = false;
-
-                // Trigger auth error event voor de app
+                // Trigger auth failed event when refresh fails
                 authEvents.triggerAuthFailed();
-
                 return Promise.reject(refreshError);
             }
+        }
+
+        // Also trigger auth failed for 401s on auth requests (like /auth/me)
+        if (status === 401 && isAuthRequest && url?.includes('/auth/me')) {
+            authEvents.triggerAuthFailed();
         }
 
         return Promise.reject(error);

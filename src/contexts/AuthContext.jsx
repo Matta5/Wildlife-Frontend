@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axiosClient, { authEvents } from '../API/axiosClient';
 import { toast } from 'react-toastify';
@@ -11,41 +11,87 @@ export const AuthProvider = ({ children }) => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const navigate = useNavigate();
+    const isMountedRef = useRef(true);
 
-    // Functie om te controleren of de gebruiker is ingelogd
-    const checkAuthStatus = useCallback(async () => {
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
+
+    const handleLogout = useCallback(async (showToast = true) => {
+        if (!isMountedRef.current) return;
+
         setIsLoading(true);
         try {
-            // Gebruik een endpoint om de huidige gebruiker op te halen
-            const response = await axiosClient.get('/auth/me');
-            setUser(response.data);
-            setIsAuthenticated(true);
+            await axiosClient.post('/auth/logout', {});
+            if (isMountedRef.current) {
+                setUser(null);
+                setIsAuthenticated(false);
+                if (showToast) {
+                    toast.info("Je bent uitgelogd");
+                }
+                navigate('/login');
+            }
         } catch (error) {
-            setUser(null);
-            setIsAuthenticated(false);
-            localStorage.removeItem("authToken");
+            console.error('Logout error:', error);
+            if (isMountedRef.current) {
+                setUser(null);
+                setIsAuthenticated(false);
+                navigate('/login');
+            }
         } finally {
-            setIsLoading(false);
+            if (isMountedRef.current) {
+                setIsLoading(false);
+            }
+        }
+    }, [navigate]);
+
+    const checkAuthStatus = useCallback(async () => {
+        if (!isMountedRef.current) return;
+
+        setIsLoading(true);
+        try {
+            const response = await axiosClient.get('/auth/me');
+            if (isMountedRef.current) {
+                setUser(response.data);
+                setIsAuthenticated(true);
+            }
+        } catch (error) {
+            if (isMountedRef.current) {
+                setUser(null);
+                setIsAuthenticated(false);
+            }
+        } finally {
+            if (isMountedRef.current) {
+                setIsLoading(false);
+            }
         }
     }, []);
 
+    // Call once on mount
     useEffect(() => {
-        // Bij het laden van de app, verifieer of de gebruiker is ingelogd
         checkAuthStatus();
+    }, [checkAuthStatus]);
 
-        // Luister naar auth errors voor logout
+    // Attach auth failed listener immediately on mount (not dependent on auth status)
+    useEffect(() => {
         const listenerId = authEvents.onAuthFailed(() => {
-            handleLogout();
-            toast.error("Je sessie is verlopen, log opnieuw in");
+            if (isMountedRef.current) {
+                handleLogout(false); // Don't show regular logout toast
+                toast.error("Je sessie is verlopen, log opnieuw in");
+            }
         });
 
         return () => {
             authEvents.removeListener(listenerId);
         };
-    }, [checkAuthStatus]);
+    }, [handleLogout]); // Only depend on handleLogout
 
-    // Login functie
     const login = async (credentials) => {
+        if (!isMountedRef.current) return false;
+
         setIsLoading(true);
         try {
             const response = await axiosClient.post('/auth/login', {
@@ -53,49 +99,23 @@ export const AuthProvider = ({ children }) => {
                 password: credentials.password
             });
 
-            setUser(response.data.user);
-            setIsAuthenticated(true);
-            toast.success("Succesvol ingelogd!");
+            if (isMountedRef.current) {
+                setUser(response.data.user);
+                setIsAuthenticated(true);
+                toast.success("Succesvol ingelogd!");
+            }
+
             return true;
         } catch (error) {
-            const errorMessage = error.response?.data?.message || "Login mislukt. Probeer het opnieuw.";
-            toast.error(errorMessage);
+            if (isMountedRef.current) {
+                const errorMessage = error.response?.data?.message || "Login mislukt. Probeer het opnieuw.";
+                toast.error(errorMessage);
+            }
             return false;
         } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // Logout functie
-    const handleLogout = async () => {
-        setIsLoading(true);
-        try {
-            await axiosClient.post('/auth/logout', {}, {
-                withCredentials: true,
-            });
-
-            // Make sure state is updated before navigation
-            setUser(null);
-            setIsAuthenticated(false);
-
-            // Clear any auth tokens from localStorage
-            localStorage.removeItem("authToken");
-
-            toast.info("Je bent uitgelogd");
-
-            // Navigate after state updates
-            navigate('/login');
-        } catch (error) {
-            console.error('Logout error:', error);
-
-            // Even if the API call fails, we should still clear the local state
-            setUser(null);
-            setIsAuthenticated(false);
-            localStorage.removeItem("authToken");
-
-            navigate('/login');
-        } finally {
-            setIsLoading(false);
+            if (isMountedRef.current) {
+                setIsLoading(false);
+            }
         }
     };
 
@@ -115,5 +135,4 @@ export const AuthProvider = ({ children }) => {
     );
 };
 
-// Custom hook om de AuthContext gemakkelijk te gebruiken
 export const useAuth = () => useContext(AuthContext);
