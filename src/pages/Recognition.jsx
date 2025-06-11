@@ -155,7 +155,7 @@ export default function Recognition() {
     };
 
     return (
-        <div className="min-h-screen bg-zinc-950 p-4">
+        <div className="min-h-screen p-4">
             <div className="max-w-4xl mx-auto pt-8">
                 <div className="text-center mb-8">
                     <h1 className="text-4xl font-bold text-white mb-2">Wildlife Recognition</h1>
@@ -250,8 +250,8 @@ export default function Recognition() {
                             <div className="space-y-4">
                                 {results.map((result, index) => (
                                     <div key={index} className={`border rounded-lg p-4 ${index === 0
-                                            ? 'border-green-600 bg-green-900/20'
-                                            : 'border-gray-700 bg-zinc-800'
+                                        ? 'border-green-600 bg-green-900/20'
+                                        : 'border-gray-700 bg-zinc-800'
                                         }`}>
                                         <div className="flex justify-between items-start mb-2">
                                             <div>
@@ -269,10 +269,10 @@ export default function Recognition() {
                                             </div>
                                             {result.confidence && (
                                                 <span className={`px-2 py-1 rounded text-sm font-medium ${result.confidence > 0.8
-                                                        ? 'bg-green-800 text-green-300'
-                                                        : result.confidence > 0.6
-                                                            ? 'bg-yellow-800 text-yellow-300'
-                                                            : 'bg-red-800 text-red-300'
+                                                    ? 'bg-green-800 text-green-300'
+                                                    : result.confidence > 0.6
+                                                        ? 'bg-yellow-800 text-yellow-300'
+                                                        : 'bg-red-800 text-red-300'
                                                     }`}>
                                                     {Math.round(result.confidence * 100)}% confident
                                                 </span>

@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import Observations from "./pages/Observations";
+import ObservationDetail from "./pages/ObservationDetail";
 import NoPage from "./pages/NoPage";
 import User from "./pages/User";
 import SignUp from "./pages/SignUp";
@@ -16,6 +17,8 @@ import "./index.css";
 import { ToastContainer } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { SpeciesProvider } from "./contexts/SpeciesContext";
+import { ObservationsProvider } from "./contexts/ObservationsContext";
 
 // Beveiligde route component
 const ProtectedRoute = ({ children }) => {
@@ -41,17 +44,34 @@ const AppRoutes = () => {
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
-          <Route path="observations" element={<Observations />} />
+          <Route path="observations" element={
+            <SpeciesProvider>
+              <ObservationsProvider>
+                <Observations />
+              </ObservationsProvider>
+            </SpeciesProvider>
+          } />
+          <Route path="observations/:id" element={
+            <ObservationsProvider>
+              <ObservationDetail />
+            </ObservationsProvider>
+          } />
           <Route path="login" element={<Login />} />
           <Route path="signup" element={<SignUp />} />
           <Route path="users/:id" element={<User />} />
           <Route path="recognition" element={<Recognition />} />
-          <Route path="species" element={<Species />} />
+          <Route path="species" element={
+            <SpeciesProvider>
+              <Species />
+            </SpeciesProvider>
+          } />
 
           {/* Beveiligde routes */}
           <Route path="account" element={
             <ProtectedRoute>
-              <Account />
+              <ObservationsProvider>
+                <Account />
+              </ObservationsProvider>
             </ProtectedRoute>
           } />
 

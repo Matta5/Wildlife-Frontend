@@ -49,7 +49,7 @@ const SignUp = () => {
 
         try {
             // Use your axiosClient instead of raw axios for consistent settings
-            await axiosClient.post("/users", {
+            await axiosClient.post("/users/simple", {
                 username: formData.username,
                 email: formData.email,
                 password: formData.password,

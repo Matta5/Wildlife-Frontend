@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../contexts/AuthContext";
+import { useObservations } from "../contexts/ObservationsContext";
 import { X, Pencil } from "lucide-react";
 
 export default function AccountPage() {
@@ -16,6 +17,7 @@ export default function AccountPage() {
     const [uploadFile, setUploadFile] = useState(null);
 
     const { logout } = useAuth();
+    const { observations, stats } = useObservations();
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -94,27 +96,19 @@ export default function AccountPage() {
         }
     };
 
-    const stats = {
-        totalObservations: 42,
-        uniqueSpecies: 15,
-    };
+    // Get recent observations for current user (last 5)
+    const userObservations = observations.filter(obs => obs.userId === user?.id);
+    const recentObservations = userObservations
+        .sort((a, b) => new Date(b.dateObserved) - new Date(a.dateObserved))
+        .slice(0, 5);
 
-    const recentObservations = [
-        {
-            id: 1,
-            species: "Bald Eagle",
-            date: "2023-10-01",
-            location: "Yellowstone National Park",
-            notes: "Spotted near the river.",
-        },
-        {
-            id: 2,
-            species: "Red Fox",
-            date: "2023-09-28",
-            location: "Yosemite National Park",
-            notes: "Crossed the road in front of me.",
-        },
-    ];
+    const formatDate = (dateString) => {
+        return new Date(dateString).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    };
 
     if (loading) {
         return <p className="text-center text-white">Loading...</p>;
@@ -182,7 +176,7 @@ export default function AccountPage() {
                 </div>
                 <div className="bg-zinc-800 p-6 rounded-lg shadow">
                     <h2 className="text-lg font-medium text-gray-300">Unique Species</h2>
-                    <p className="text-4xl font-bold mt-2 text-white">{stats.uniqueSpecies}</p>
+                    <p className="text-4xl font-bold mt-2 text-white">{stats.uniqueSpeciesObserved}</p>
                     <p className="text-sm text-gray-400 mt-1">Different species observed</p>
                 </div>
             </div>
@@ -199,12 +193,15 @@ export default function AccountPage() {
                             <li
                                 key={obs.id}
                                 className="p-4 border border-gray-700 rounded hover:bg-zinc-800 cursor-pointer"
-                                onClick={() => setSelectedObservation(obs)}
+                                onClick={() => navigate(`/observations/${obs.id}`)}
                             >
                                 <div className="flex justify-between">
                                     <div>
-                                        <h3 className="font-medium text-white">{obs.species}</h3>
-                                        <p className="text-sm text-gray-400">{obs.date}</p>
+                                        <h3 className="font-medium text-white">{obs.species?.commonName || "Unknown Species"}</h3>
+                                        <p className="text-sm text-gray-400">{formatDate(obs.dateObserved)}</p>
+                                        {(obs.latitude && obs.longitude) && (
+                                            <p className="text-sm text-gray-500">{obs.latitude.toFixed(4)}, {obs.longitude.toFixed(4)}</p>
+                                        )}
                                     </div>
                                     <button className="text-blue-400 hover:underline">View</button>
                                 </div>
@@ -221,35 +218,6 @@ export default function AccountPage() {
                     </button>
                 </div>
             </div>
-
-            {/* Observation Popup */}
-            {selectedObservation && (
-                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-                    <div className="bg-zinc-900 text-white p-6 rounded-lg w-full max-w-md shadow-lg">
-                        <h3 className="text-xl font-bold">{selectedObservation.species}</h3>
-                        <p className="text-sm text-gray-400 mb-4">
-                            Observed on {selectedObservation.date}
-                        </p>
-                        <hr className="mb-4 border-gray-700" />
-                        <div className="mb-2">
-                            <h4 className="text-sm font-medium text-gray-300">Location</h4>
-                            <p>{selectedObservation.location}</p>
-                        </div>
-                        <div className="mb-2">
-                            <h4 className="text-sm font-medium text-gray-300">Notes</h4>
-                            <p>{selectedObservation.notes}</p>
-                        </div>
-                        <div className="text-right">
-                            <button
-                                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                                onClick={() => setSelectedObservation(null)}
-                            >
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Username Edit Popup */}
             {isEditingName && (
