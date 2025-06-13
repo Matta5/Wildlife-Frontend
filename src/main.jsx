@@ -38,6 +38,23 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+// Public only route component (voor login/signup)
+const PublicOnlyRoute = ({ children }) => {
+  const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
+
+  if (isLoading) {
+    return <div className="loading">Loading...</div>;
+  }
+
+  if (isAuthenticated) {
+    // Redirect naar account als gebruiker al ingelogd is
+    return <Navigate to="/account" replace />;
+  }
+
+  return children;
+};
+
 // Route configuratie met AuthProvider
 const AppRoutes = () => {
   return (
@@ -60,8 +77,16 @@ const AppRoutes = () => {
                 </ObservationsProvider>
               </SpeciesProvider>
             } />
-            <Route path="login" element={<Login />} />
-            <Route path="signup" element={<SignUp />} />
+            <Route path="login" element={
+              <PublicOnlyRoute>
+                <Login />
+              </PublicOnlyRoute>
+            } />
+            <Route path="signup" element={
+              <PublicOnlyRoute>
+                <SignUp />
+              </PublicOnlyRoute>
+            } />
             <Route path="users/:id" element={<UserDetail />} />
             <Route path="recognition" element={
               <ObservationsProvider>

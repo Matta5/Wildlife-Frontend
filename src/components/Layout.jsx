@@ -6,10 +6,10 @@ const Layout = () => {
     const { isAuthenticated, logout, checkAuthStatus } = useAuth();
     const location = useLocation();
 
-    // Force a re-check of auth status when the component mounts
+    // Check auth status when the component mounts
     useEffect(() => {
         checkAuthStatus();
-    }, [checkAuthStatus]);
+    }, []); // Remove checkAuthStatus from dependencies to prevent infinite loops
 
     return (
         <div className="flex flex-col min-h-screen">

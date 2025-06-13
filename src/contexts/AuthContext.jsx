@@ -53,7 +53,7 @@ export const AuthProvider = ({ children }) => {
     }, [navigate, showInfo]);
 
     const checkAuthStatus = useCallback(async () => {
-        if (!isMountedRef.current || hasCheckedAuth) return;
+        if (!isMountedRef.current) return;
 
         setIsLoading(true);
         try {
@@ -74,7 +74,11 @@ export const AuthProvider = ({ children }) => {
                 setIsLoading(false);
             }
         }
-    }, [hasCheckedAuth]);
+    }, []);
+
+    const resetAuthCheck = useCallback(() => {
+        setHasCheckedAuth(false);
+    }, []);
 
     // Call once on mount
     useEffect(() => {
@@ -125,6 +129,40 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const signup = async (userData) => {
+        if (!isMountedRef.current) return false;
+
+        setIsLoading(true);
+        try {
+            // First create the account
+            await axiosClient.post('/users/simple', userData);
+            
+            // Then automatically log in the user
+            const loginResponse = await axiosClient.post('/auth/login', {
+                username: userData.username,
+                password: userData.password
+            });
+
+            if (isMountedRef.current) {
+                setUser(loginResponse.data.user);
+                setIsAuthenticated(true);
+                setHasCheckedAuth(true);
+            }
+
+            return true;
+        } catch (error) {
+            if (isMountedRef.current) {
+                const errorMessage = error.response?.data?.message || "Registratie mislukt. Probeer het opnieuw.";
+                showError(errorMessage);
+            }
+            return false;
+        } finally {
+            if (isMountedRef.current) {
+                setIsLoading(false);
+            }
+        }
+    };
+
     return (
         <AuthContext.Provider
             value={{
@@ -134,6 +172,8 @@ export const AuthProvider = ({ children }) => {
                 login,
                 logout: handleLogout,
                 checkAuthStatus,
+                signup,
+                resetAuthCheck,
             }}
         >
             {children}

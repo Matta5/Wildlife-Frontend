@@ -81,6 +81,12 @@ axiosClient.interceptors.response.use(
 
         // Handle 401 errors
         if (status === 401) {
+            // If it's a signup request and we get 401, it might be because user is already logged in
+            // Don't trigger auth failed for signup endpoint
+            if (url?.includes('/users/simple')) {
+                return Promise.reject(error);
+            }
+            
             // If it's an auth request, trigger auth failed immediately
             if (isAuthRequest) {
                 authEvents.triggerAuthFailed();

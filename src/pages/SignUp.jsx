@@ -15,7 +15,7 @@ const SignUp = () => {
     const [isLoading, setIsLoading] = useState(false);
 
     const navigate = useNavigate();
-    const { checkAuthStatus } = useAuth();
+    const { signup } = useAuth();
     const { showSuccess, showError } = useToast();
 
     const handleChange = (e) => {
@@ -48,27 +48,26 @@ const SignUp = () => {
         }
 
         try {
-            await axiosClient.post("/users/simple", {
+            const success = await signup({
                 username: formData.username,
                 email: formData.email,
                 password: formData.password,
             });
 
-            showSuccess("Account succesvol aangemaakt! Welkom!");
-            
-            // Reset form data
-            setFormData({
-                username: "",
-                email: "",
-                password: "",
-                confirmPassword: "",
-            });
+            if (success) {
+                showSuccess("Account succesvol aangemaakt! Welkom!");
+                
+                // Reset form data
+                setFormData({
+                    username: "",
+                    email: "",
+                    password: "",
+                    confirmPassword: "",
+                });
 
-            // Update authentication status after registration
-            await checkAuthStatus();
-
-            // Navigate to account page after successful signup and auth check
-            navigate("/account");
+                // Navigate to account page after successful signup
+                navigate("/account");
+            }
         } catch (err) {
             let errorMessage = "Er is een fout opgetreden. Probeer het opnieuw.";
             

@@ -59,11 +59,19 @@ export const SpeciesProvider = ({ children }) => {
             setLoading(true);
             const response = await axiosClient.get(`/api/species/find?q=${encodeURIComponent(query)}&limit=${limit}`);
             setSearchResults(response.data);
-            toast.success(`Found ${response.data.length} species`);
+            
+            // Check if any species were imported (we can't know for sure, but we can show a helpful message)
+            if (response.data.length > 0) {
+                toast.success(`Found ${response.data.length} species. Some may have been automatically imported from iNaturalist.`);
+            } else {
+                toast.info("No species found for this search term.");
+            }
+            
             return response.data;
         } catch (error) {
             setError("Failed to find species");
             console.error("Error finding species:", error);
+            toast.error("Failed to search species. Please try again.");
             return [];
         } finally {
             setLoading(false);
