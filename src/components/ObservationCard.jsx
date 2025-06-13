@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Edit, Trash2, Eye, Calendar, MapPin, User } from "lucide-react";
+import { Edit, Trash2, Calendar, MapPin, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useObservations } from "../contexts/ObservationsContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -47,7 +47,16 @@ const ObservationCard = ({ observation, onEdit, onView }) => {
     const isOwner = user?.id === observation.userId;
 
     return (
-        <div className="bg-zinc-800 rounded-lg p-4 hover:bg-zinc-700 transition-colors">
+        <div 
+            className="bg-zinc-800 rounded-lg p-4 hover:bg-zinc-700 transition-colors cursor-pointer"
+            onClick={(e) => {
+                // Don't navigate if clicking on action buttons
+                if (e.target.closest('button')) {
+                    return;
+                }
+                handleView();
+            }}
+        >
             {/* User Info Header */}
             <div className="flex items-center gap-3 mb-3">
                 <div className="h-8 w-8 rounded-full overflow-hidden bg-gray-700">
@@ -60,18 +69,19 @@ const ObservationCard = ({ observation, onEdit, onView }) => {
                     )}
                 </div>
                 <div className="flex-1">
-                    <p className="text-sm font-medium text-white">{observation.user?.username}</p>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/users/${observation.userId}`);
+                        }}
+                        className="text-sm font-medium text-white hover:text-blue-300 transition-colors"
+                    >
+                        {observation.user?.username}
+                    </button>
                     <p className="text-xs text-gray-400">{formatDate(observation.dateObserved)} at {formatTime(observation.dateObserved)}</p>
                 </div>
                 {isOwner && (
-                    <div className="flex gap-1">
-                        <button
-                            onClick={handleView}
-                            className="p-1.5 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 rounded"
-                            title="View details"
-                        >
-                            <Eye className="w-4 h-4" />
-                        </button>
+                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                         <button
                             onClick={() => onEdit(observation)}
                             className="p-1.5 text-gray-400 hover:text-gray-300 hover:bg-gray-700 rounded"
@@ -112,8 +122,7 @@ const ObservationCard = ({ observation, onEdit, onView }) => {
                     <img
                         src={observation.imageUrl}
                         alt={`${observation.species?.commonName || 'Species'} observation`}
-                        className="w-full h-48 object-cover rounded cursor-pointer"
-                        onClick={handleView}
+                        className="w-full h-48 object-cover rounded"
                     />
                 </div>
             )}

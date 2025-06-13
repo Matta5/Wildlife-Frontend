@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { toast } from 'react-toastify';
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { useToast } from "../contexts/ToastContext";
 import axiosClient from '../API/axiosClient';
 
 const SignUp = () => {
@@ -12,52 +12,50 @@ const SignUp = () => {
         confirmPassword: "",
     });
 
-    const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
 
     const navigate = useNavigate();
     const { checkAuthStatus } = useAuth();
+    const { showSuccess, showError } = useToast();
 
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData({ ...formData, [name]: value });
     };
 
-    const notifySuccess = () => {
-        toast.success("Sign-up successful!", {
-            position: "top-right",
-            autoClose: 5000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-            progress: undefined,
-        });
-    };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError("");
         setIsLoading(true);
 
         // Password validation
         if (formData.password !== formData.confirmPassword) {
-            setError("Passwords do not match.");
+            showError("Wachtwoorden komen niet overeen.");
+            setIsLoading(false);
+            return;
+        }
+
+        // Additional validation
+        if (formData.password.length < 6) {
+            showError("Wachtwoord moet minimaal 6 karakters lang zijn.");
+            setIsLoading(false);
+            return;
+        }
+
+        if (formData.username.length < 3) {
+            showError("Gebruikersnaam moet minimaal 3 karakters lang zijn.");
             setIsLoading(false);
             return;
         }
 
         try {
-            // Use your axiosClient instead of raw axios for consistent settings
             await axiosClient.post("/users/simple", {
                 username: formData.username,
                 email: formData.email,
                 password: formData.password,
             });
 
-            // Notify user of success
-            notifySuccess();
-
+            showSuccess("Account succesvol aangemaakt! Welkom!");
+            
             // Reset form data
             setFormData({
                 username: "",
@@ -66,18 +64,28 @@ const SignUp = () => {
                 confirmPassword: "",
             });
 
-            // Important: Update authentication status after registration
+            // Update authentication status after registration
             await checkAuthStatus();
 
             // Navigate to account page after successful signup and auth check
-            navigate("/Account");
+            navigate("/account");
         } catch (err) {
-            if (err.response && err.response.data && err.response.data.message) {
-                setError(err.response.data.message);
-            } else {
-                setError("An error occurred. Please try again.");
-                console.error("Signup error:", err);
+            let errorMessage = "Er is een fout opgetreden. Probeer het opnieuw.";
+            
+            if (err.response?.data?.message) {
+                errorMessage = err.response.data.message;
+            } else if (err.response?.status === 409) {
+                if (err.response.data.includes("Username")) {
+                    errorMessage = "Deze gebruikersnaam is al in gebruik.";
+                } else if (err.response.data.includes("Email")) {
+                    errorMessage = "Dit e-mailadres is al in gebruik.";
+                }
+            } else if (err.response?.status === 0) {
+                errorMessage = "Kan geen verbinding maken met de server. Controleer je internetverbinding.";
             }
+            
+            showError(errorMessage);
+            console.error("Signup error:", err);
         } finally {
             setIsLoading(false);
         }
@@ -86,7 +94,6 @@ const SignUp = () => {
     return (
         <div className="flex justify-center items-center min-h-[calc(100vh-112px)] bg-black text-white">
             <form onSubmit={handleSubmit} className="bg-black p-6 rounded border border-white max-w-md w-full">
-                {error && <div className="bg-red-500 text-white p-2 rounded mb-4">{error}</div>}
                 <h1 className="text-center text-white text-2xl font-bold mb-6">Create an account</h1>
                 <div className="mb-4">
                     <input
@@ -99,6 +106,7 @@ const SignUp = () => {
                         onChange={handleChange}
                         required
                         disabled={isLoading}
+                        minLength={3}
                     />
                 </div>
                 <div className="mb-4">
@@ -125,6 +133,7 @@ const SignUp = () => {
                         onChange={handleChange}
                         required
                         disabled={isLoading}
+                        minLength={6}
                     />
                 </div>
                 <div className="mb-4">
@@ -142,7 +151,7 @@ const SignUp = () => {
                 </div>
                 <button
                     type="submit"
-                    className="w-full font-medium bg-white text-black hover:bg-gray-200 focus:outline-2 focus:outline-offset-2 focus:outline-white active:bg-gray-200 py-2 rounded"
+                    className="w-full font-medium bg-white text-black hover:bg-gray-200 focus:outline-2 focus:outline-offset-2 focus:outline-white active:bg-gray-200 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={isLoading}
                 >
                     {isLoading ? "Creating account..." : "Create account"}

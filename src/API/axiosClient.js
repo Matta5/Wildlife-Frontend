@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_URL = 'http://localhost:7186'; // Fixed typo
+const BASE_URL = 'http://localhost:7186';
 
 const axiosClient = axios.create({
     baseURL: BASE_URL,
@@ -50,7 +50,13 @@ export const authEvents = {
 
 // Request interceptor
 axiosClient.interceptors.request.use(
-    config => config,
+    config => {
+        // For multipart form data, don't set Content-Type header
+        if (config.data instanceof FormData) {
+            delete config.headers['Content-Type'];
+        }
+        return config;
+    },
     error => Promise.reject(error)
 );
 
@@ -62,44 +68,56 @@ axiosClient.interceptors.response.use(
         const status = error.response?.status;
         const url = originalRequest?.url;
 
-        const isAuthRequest =
-            url?.includes('/auth/login') ||
-            url?.includes('/auth/register') ||
-            url?.includes('/auth/refresh');
+        // Define auth endpoints that should not trigger refresh
+        const authEndpoints = [
+            '/auth/login',
+            '/auth/register', 
+            '/auth/signup',
+            '/auth/refresh',
+            '/users/simple'
+        ];
 
-        // Only refresh token for 401s on non-auth requests
-        if (status === 401 && !originalRequest._retry && !isAuthRequest) {
-            if (isRefreshing) {
-                return new Promise(resolve => {
-                    addSubscriber(() => resolve(axiosClient(originalRequest)));
-                });
-            }
+        const isAuthRequest = authEndpoints.some(endpoint => url?.includes(endpoint));
 
-            originalRequest._retry = true;
-            isRefreshing = true;
-
-            try {
-                await axiosClient.post('/auth/refresh', {}, {
-                    withCredentials: true,
-                });
-
-                isRefreshing = false;
-                onRefreshed();
-
-                return axiosClient(originalRequest);
-            } catch (refreshError) {
-                isRefreshing = false;
-                // Trigger auth failed event when refresh fails
+        // Handle 401 errors
+        if (status === 401) {
+            // If it's an auth request, trigger auth failed immediately
+            if (isAuthRequest) {
                 authEvents.triggerAuthFailed();
-                return Promise.reject(refreshError);
+                return Promise.reject(error);
+            }
+
+            // For non-auth requests, try to refresh token
+            if (!originalRequest._retry) {
+                if (isRefreshing) {
+                    // If already refreshing, add to queue
+                    return new Promise(resolve => {
+                        addSubscriber(() => resolve(axiosClient(originalRequest)));
+                    });
+                }
+
+                originalRequest._retry = true;
+                isRefreshing = true;
+
+                try {
+                    // Try to refresh token
+                    await axiosClient.post('/auth/refresh');
+                    
+                    isRefreshing = false;
+                    onRefreshed();
+
+                    // Retry the original request
+                    return axiosClient(originalRequest);
+                } catch (refreshError) {
+                    isRefreshing = false;
+                    // If refresh fails, trigger auth failed event
+                    authEvents.triggerAuthFailed();
+                    return Promise.reject(refreshError);
+                }
             }
         }
 
-        // Also trigger auth failed for 401s on auth requests (like /auth/me)
-        if (status === 401 && isAuthRequest && url?.includes('/auth/me')) {
-            authEvents.triggerAuthFailed();
-        }
-
+        // For other errors, just reject
         return Promise.reject(error);
     }
 );

@@ -4,6 +4,8 @@ import { ArrowLeft, Edit, Trash2, MapPin, Calendar, User, Clock } from "lucide-r
 import { useObservations } from "../contexts/ObservationsContext";
 import { useAuth } from "../contexts/AuthContext";
 import LoadingSpinner from "../components/LoadingSpinner";
+import GoogleMap from "../components/GoogleMap";
+import ObservationForm from "../components/ObservationForm";
 
 const ObservationDetail = () => {
     const { id } = useParams();
@@ -12,6 +14,7 @@ const ObservationDetail = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [showEditForm, setShowEditForm] = useState(false);
 
     const { getObservation, deleteObservation } = useObservations();
     const { user, isAuthenticated } = useAuth();
@@ -48,6 +51,21 @@ const ObservationDetail = () => {
             console.error("Failed to delete observation:", error);
         } finally {
             setIsDeleting(false);
+        }
+    };
+
+    const handleEditFormClose = () => {
+        setShowEditForm(false);
+    };
+
+    const handleEditFormSuccess = async () => {
+        setShowEditForm(false);
+        // Refresh the observation data
+        try {
+            const updatedObservation = await getObservation(id);
+            setObservation(updatedObservation);
+        } catch (err) {
+            console.error("Error refreshing observation:", err);
         }
     };
 
@@ -118,7 +136,7 @@ const ObservationDetail = () => {
                 {isOwner && (
                     <div className="flex gap-2">
                         <button
-                            onClick={() => navigate(`/observations/${id}/edit`)}
+                            onClick={() => setShowEditForm(true)}
                             className="px-4 py-2 border border-gray-600 text-white rounded hover:bg-zinc-800 flex items-center gap-2"
                         >
                             <Edit className="w-4 h-4" />
@@ -224,12 +242,12 @@ const ObservationDetail = () => {
 
                 {/* Location */}
                 {(observation.latitude && observation.longitude) && (
-                    <div className="mb-4">
-                        <h3 className="text-sm font-medium text-gray-300 mb-2">Location</h3>
-                        <div className="flex items-center gap-2 text-white">
-                            <MapPin className="w-4 h-4" />
-                            <span>{observation.latitude.toFixed(6)}, {observation.longitude.toFixed(6)}</span>
-                        </div>
+                    <div className="mb-6">
+                        <GoogleMap 
+                            latitude={observation.latitude} 
+                            longitude={observation.longitude}
+                            title={`${observation.species?.commonName || 'Species'} Observation`}
+                        />
                     </div>
                 )}
 
@@ -245,6 +263,14 @@ const ObservationDetail = () => {
                     </div>
                 </div>
             </div>
+
+            {showEditForm && (
+                <ObservationForm
+                    observation={observation}
+                    onClose={handleEditFormClose}
+                    onSuccess={handleEditFormSuccess}
+                />
+            )}
         </div>
     );
 };

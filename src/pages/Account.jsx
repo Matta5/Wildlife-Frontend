@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import axiosClient from "../API/axiosClient";
 import { useAuth } from "../contexts/AuthContext";
 import { useObservations } from "../contexts/ObservationsContext";
+import { useToast } from "../contexts/ToastContext";
 import { X, Pencil } from "lucide-react";
 
 export default function AccountPage() {
@@ -15,17 +16,17 @@ export default function AccountPage() {
     const [uploadError, setUploadError] = useState("");
     const [previewImage, setPreviewImage] = useState(null);
     const [uploadFile, setUploadFile] = useState(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const { logout } = useAuth();
     const { observations, stats } = useObservations();
+    const { showSuccess, showError } = useToast();
     const navigate = useNavigate();
 
     useEffect(() => {
         const fetchUser = async () => {
             try {
-                const res = await axios.get("http://localhost:7186/auth/me", {
-                    withCredentials: true,
-                });
+                const res = await axiosClient.get("/auth/me");
                 setUser(res.data);
             } catch (error) {
                 setUser(null);
@@ -38,41 +39,83 @@ export default function AccountPage() {
     }, []);
 
     const handleUsernamePatch = async () => {
+        if (!newUsername.trim()) {
+            showError("Username cannot be empty.");
+            return;
+        }
+
+        if (newUsername.length < 3) {
+            showError("Username must be at least 3 characters long.");
+            return;
+        }
+
+        if (newUsername === user.username) {
+            setIsEditingName(false);
+            return;
+        }
+
+        setIsSubmitting(true);
         try {
             const formData = new FormData();
             formData.append("Username", newUsername);
-            await axios.patch("http://localhost:7186/users", formData, {
-                withCredentials: true,
-            });
+            await axiosClient.patch("/users", formData);
             setUser(prev => ({ ...prev, username: newUsername }));
             setIsEditingName(false);
+            showSuccess("Username updated successfully!");
         } catch (err) {
-            console.error(err);
+            let errorMessage = "Failed to update username. Please try again.";
+            
+            if (err.response?.data?.error) {
+                errorMessage = err.response.data.error;
+            } else if (err.response?.status === 409) {
+                errorMessage = "This username is already taken.";
+            } else if (err.response?.status === 0) {
+                errorMessage = "Cannot connect to server. Check your internet connection.";
+            }
+            
+            showError(errorMessage);
+            console.error("Username patch error:", err);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
     const handleProfilePictureUpload = async () => {
+        if (!uploadFile) {
+            showError("Please select an image first.");
+            return;
+        }
+
+        setIsSubmitting(true);
         try {
-            if (!uploadFile) return;
             const formData = new FormData();
             formData.append("ProfilePicture", uploadFile);
-            await axios.patch("http://localhost:7186/users", formData, {
-                withCredentials: true,
-            });
+            await axiosClient.patch("/users", formData);
             setUser(prev => ({ ...prev, profilePicture: URL.createObjectURL(uploadFile) }));
             setIsEditingPicture(false);
+            setUploadFile(null);
+            setPreviewImage(null);
+            showSuccess("Profile picture updated successfully!");
         } catch (err) {
-            console.error(err);
-            setUploadError("Failed to upload profile picture.");
+            let errorMessage = "Failed to update profile picture. Please try again.";
+            
+            if (err.response?.data?.error) {
+                errorMessage = err.response.data.error;
+            } else if (err.response?.status === 0) {
+                errorMessage = "Cannot connect to server. Check your internet connection.";
+            }
+            
+            showError(errorMessage);
+            console.error("Profile picture upload error:", err);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
     const handleDeleteAccount = async () => {
         if (!window.confirm("Are you sure you want to delete your account? This cannot be undone.")) return;
         try {
-            await axios.delete("http://localhost:7186/users", {
-                withCredentials: true,
-            });
+            await axiosClient.delete("/users");
             logout();
         } catch (err) {
             console.error(err);
@@ -237,16 +280,18 @@ export default function AccountPage() {
                         />
                         <div className="mt-4 flex justify-end gap-2">
                             <button
-                                className="px-4 py-2 border border-gray-600 rounded hover:bg-zinc-800"
+                                className="px-4 py-2 border border-gray-600 rounded hover:bg-zinc-800 disabled:opacity-50"
                                 onClick={() => setIsEditingName(false)}
+                                disabled={isSubmitting}
                             >
                                 Cancel
                             </button>
                             <button
-                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                 onClick={handleUsernamePatch}
+                                disabled={isSubmitting}
                             >
-                                Save
+                                {isSubmitting ? "Saving..." : "Save"}
                             </button>
                         </div>
                     </div>
@@ -283,20 +328,20 @@ export default function AccountPage() {
                                 )}
                             </label>
                         </div>
-                        {uploadError && <p className="text-red-500 mt-2">{uploadError}</p>}
                         <div className="mt-4 flex justify-end gap-2">
                             <button
-                                className="px-4 py-2 border border-gray-600 rounded hover:bg-zinc-800"
+                                className="px-4 py-2 border border-gray-600 rounded hover:bg-zinc-800 disabled:opacity-50"
                                 onClick={() => setIsEditingPicture(false)}
+                                disabled={isSubmitting}
                             >
                                 Cancel
                             </button>
                             <button
-                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                 onClick={handleProfilePictureUpload}
-                                disabled={!uploadFile}
+                                disabled={!uploadFile || isSubmitting}
                             >
-                                Save
+                                {isSubmitting ? "Uploading..." : "Save"}
                             </button>
                         </div>
                     </div>

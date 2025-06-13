@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import axiosClient from "../API/axiosClient";
 import { toast } from "react-toastify";
 import { useAuth } from "../contexts/AuthContext";
-import { Upload, Camera, X } from "lucide-react";
+import { Upload, Camera, X, Loader2, Eye, MapPin } from "lucide-react";
+import ObservationForm from "../components/ObservationForm";
 
 export default function Recognition() {
     const [previewImage, setPreviewImage] = useState(null);
@@ -11,6 +12,8 @@ export default function Recognition() {
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState(null);
     const [dragActive, setDragActive] = useState(false);
+    const [showObservationForm, setShowObservationForm] = useState(false);
+    const [selectedResult, setSelectedResult] = useState(null);
 
     const navigate = useNavigate();
     const { user } = useAuth();
@@ -28,7 +31,9 @@ export default function Recognition() {
         formData.append("ImageFile", uploadFile);
 
         try {
-            const response = await axios.post("http://localhost:7186/identify", formData);
+            console.log("Starting recognition for image:", uploadFile.name);
+            const response = await axiosClient.post("/identify", formData);
+            console.log("Recognition response:", response.data);
 
             if (response.data.success) {
                 // Transform the backend response to match frontend expectations
@@ -36,7 +41,9 @@ export default function Recognition() {
                     species: response.data.scientificName,
                     commonName: response.data.preferredEnglishName,
                     confidence: response.data.confidence / 2000, // Normalize confidence to 0-1 range
-                    description: `Scientific name: ${response.data.scientificName}`
+                    description: `Scientific name: ${response.data.scientificName}`,
+                    taxonId: response.data.taxonId,
+                    imageUrl: response.data.imageUrl
                 };
 
                 // Add alternative results
@@ -44,14 +51,22 @@ export default function Recognition() {
                     species: alt.scientificName,
                     commonName: alt.preferredEnglishName,
                     confidence: alt.confidence / 2000, // Normalize confidence to 0-1 range
-                    description: `Scientific name: ${alt.scientificName}`
+                    description: `Scientific name: ${alt.scientificName}`,
+                    taxonId: alt.taxonId,
+                    imageUrl: alt.imageUrl
                 })) || [];
 
-                // Combine main result with alternatives
-                const allResults = [mainResult, ...alternativeResults];
+                // Combine main result with alternatives (top 5)
+                const allResults = [mainResult, ...alternativeResults].slice(0, 5);
 
                 setResults(allResults);
-                toast.success("Recognition completed successfully!");
+                
+                // Show import message if species was imported
+                if (response.data.importMessage) {
+                    toast.success(response.data.importMessage);
+                } else {
+                    toast.success("Recognition completed successfully!");
+                }
             } else {
                 toast.error(response.data.errorMessage || "An error occurred during recognition.");
             }
@@ -134,24 +149,75 @@ export default function Recognition() {
         setResults(null);
     };
 
-    const handleMakeObservation = () => {
+    const findSpeciesByScientificName = async (scientificName) => {
+        try {
+            const response = await axiosClient.get(`/api/species/search?q=${encodeURIComponent(scientificName)}&limit=1`);
+            if (response.data && response.data.length > 0) {
+                return response.data[0];
+            }
+        } catch (error) {
+            console.error("Error finding species:", error);
+        }
+        return null;
+    };
+
+    const handleMakeObservation = (result) => {
         if (!user) {
             toast.info("Please log in to make an observation.");
             navigate("/login", {
                 state: {
-                    returnTo: "/observation",
+                    returnTo: "/recognition",
                     observationData: { results, image: previewImage }
                 }
             });
-        } else {
-            navigate("/observation", {
-                state: {
-                    results,
-                    image: previewImage,
-                    originalFile: uploadFile
-                }
-            });
+            return;
         }
+
+        setSelectedResult(result);
+        setShowObservationForm(true);
+    };
+
+    const handleViewSpecies = async (result, index) => {
+        try {
+            let species = null;
+            
+            // If we have a taxon ID, try to import directly
+            if (result.taxonId) {
+                try {
+                    const importResponse = await axiosClient.post(`/api/species/import/${result.taxonId}`);
+                    if (importResponse.data) {
+                        species = importResponse.data;
+                        console.log("Species imported directly:", species);
+                    }
+                } catch (importError) {
+                    console.log("Direct import failed, falling back to search:", importError);
+                }
+            }
+            
+            // Fallback to search if direct import failed or no taxon ID
+            if (!species) {
+                species = await findSpeciesByScientificName(result.species);
+            }
+            
+            if (species) {
+                navigate(`/species/${species.id}`);
+            } else {
+                toast.info(`Species "${result.species}" not found in database. You can import it from iNaturalist.`);
+            }
+        } catch (error) {
+            console.error("Error finding species:", error);
+            toast.error("Failed to find species details.");
+        }
+    };
+
+    const handleObservationFormClose = () => {
+        setShowObservationForm(false);
+        setSelectedResult(null);
+    };
+
+    const handleObservationFormSuccess = () => {
+        toast.success("Observation created successfully!");
+        handleObservationFormClose();
     };
 
     return (
@@ -284,19 +350,28 @@ export default function Recognition() {
                                             </p>
                                         )}
                                         {result.description && (
-                                            <p className="text-gray-400 text-sm">{result.description}</p>
+                                            <p className="text-gray-400 text-sm mb-4">{result.description}</p>
                                         )}
+                                        
+                                        {/* Action Buttons */}
+                                        <div className="flex gap-2 mt-4">
+                                            <button
+                                                onClick={() => handleViewSpecies(result, index)}
+                                                className="flex items-center gap-2 px-3 py-2 bg-zinc-700 text-white rounded hover:bg-zinc-600 transition-colors text-sm"
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                                View Species
+                                            </button>
+                                            <button
+                                                onClick={() => handleMakeObservation(result)}
+                                                className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors text-sm"
+                                            >
+                                                <MapPin className="w-4 h-4" />
+                                                Make Observation
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
-
-                                <div className="flex justify-center pt-4 border-t border-gray-700">
-                                    <button
-                                        onClick={handleMakeObservation}
-                                        className="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-semibold"
-                                    >
-                                        Make Observation
-                                    </button>
-                                </div>
                             </div>
                         ) : (
                             <div className="text-center py-8">
@@ -309,6 +384,19 @@ export default function Recognition() {
                     </div>
                 )}
             </div>
+
+            {/* Observation Form Modal */}
+            {showObservationForm && selectedResult && (
+                <ObservationForm
+                    onClose={handleObservationFormClose}
+                    onSuccess={handleObservationFormSuccess}
+                    prefillData={{
+                        species: selectedResult,
+                        imageFile: uploadFile,
+                        previewImage: previewImage
+                    }}
+                />
+            )}
         </div>
     );
 }

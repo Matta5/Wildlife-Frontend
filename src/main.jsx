@@ -8,17 +8,18 @@ import Observations from "./pages/Observations";
 import ObservationDetail from "./pages/ObservationDetail";
 import NoPage from "./pages/NoPage";
 import User from "./pages/User";
+import UserDetail from "./pages/UserDetail";
 import SignUp from "./pages/SignUp";
 import Login from "./pages/Login";
 import Recognition from "./pages/Recognition";
 import Species from "./pages/Species";
+import SpeciesDetail from "./pages/SpeciesDetail";
 import Account from "./pages/Account";
 import "./index.css";
-import { ToastContainer } from "react-toastify";
-import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { SpeciesProvider } from "./contexts/SpeciesContext";
 import { ObservationsProvider } from "./contexts/ObservationsContext";
+import { ToastProvider } from "./contexts/ToastContext";
 
 // Beveiligde route component
 const ProtectedRoute = ({ children }) => {
@@ -40,57 +41,67 @@ const ProtectedRoute = ({ children }) => {
 // Route configuratie met AuthProvider
 const AppRoutes = () => {
   return (
-    <AuthProvider>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Home />} />
-          <Route path="observations" element={
-            <SpeciesProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Home />} />
+            <Route path="observations" element={
+              <SpeciesProvider>
+                <ObservationsProvider>
+                  <Observations />
+                </ObservationsProvider>
+              </SpeciesProvider>
+            } />
+            <Route path="observations/:id" element={
+              <SpeciesProvider>
+                <ObservationsProvider>
+                  <ObservationDetail />
+                </ObservationsProvider>
+              </SpeciesProvider>
+            } />
+            <Route path="login" element={<Login />} />
+            <Route path="signup" element={<SignUp />} />
+            <Route path="users/:id" element={<UserDetail />} />
+            <Route path="recognition" element={
               <ObservationsProvider>
-                <Observations />
+                <Recognition />
               </ObservationsProvider>
-            </SpeciesProvider>
-          } />
-          <Route path="observations/:id" element={
-            <ObservationsProvider>
-              <ObservationDetail />
-            </ObservationsProvider>
-          } />
-          <Route path="login" element={<Login />} />
-          <Route path="signup" element={<SignUp />} />
-          <Route path="users/:id" element={<User />} />
-          <Route path="recognition" element={<Recognition />} />
-          <Route path="species" element={
-            <SpeciesProvider>
-              <Species />
-            </SpeciesProvider>
-          } />
+            } />
+            <Route path="species" element={
+              <SpeciesProvider>
+                <Species />
+              </SpeciesProvider>
+            } />
+            <Route path="species/:id" element={
+              <SpeciesProvider>
+                <SpeciesDetail />
+              </SpeciesProvider>
+            } />
 
-          {/* Beveiligde routes */}
-          <Route path="account" element={
-            <ProtectedRoute>
-              <ObservationsProvider>
-                <Account />
-              </ObservationsProvider>
-            </ProtectedRoute>
-          } />
+            {/* Beveiligde routes */}
+            <Route path="account" element={
+              <ProtectedRoute>
+                <ObservationsProvider>
+                  <Account />
+                </ObservationsProvider>
+              </ProtectedRoute>
+            } />
 
-          <Route path="*" element={<NoPage />} />
-        </Route>
-      </Routes>
-    </AuthProvider>
+            <Route path="*" element={<NoPage />} />
+          </Route>
+        </Routes>
+      </AuthProvider>
+    </ToastProvider>
   );
 };
 
 // Hoofdapp component
 export default function App() {
   return (
-    <>
-      <ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} />
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
-    </>
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
   );
 }
 

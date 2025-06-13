@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useCallback } from "react";
-import axios from "axios";
+import axiosClient from "../API/axiosClient";
+import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { toast } from "react-toastify";
 
 const SpeciesContext = createContext();
@@ -18,74 +18,52 @@ export const SpeciesProvider = ({ children }) => {
     const [popularSpecies, setPopularSpecies] = useState([]);
     const [searchResults, setSearchResults] = useState([]);
     const [filterResults, setFilterResults] = useState([]);
+    const [error, setError] = useState(null);
 
-    const BASE_URL = "http://localhost:7186";
-
-    // Load popular species
-    const loadPopularSpecies = useCallback(async (limit = 10) => {
+    // Fetch popular species
+    const fetchPopularSpecies = useCallback(async (limit = 10) => {
         try {
             setLoading(true);
-            const response = await axios.get(`${BASE_URL}/api/species/popular?limit=${limit}`);
+            const response = await axiosClient.get(`/api/species/popular?limit=${limit}`);
             setPopularSpecies(response.data);
             return response.data;
         } catch (error) {
-            console.error("Error loading popular species:", error);
-            toast.error("Failed to load popular species");
+            setError("Failed to fetch popular species");
+            console.error("Error fetching popular species:", error);
             return [];
         } finally {
             setLoading(false);
         }
     }, []);
 
-    // Search species in local database
+    // Search species
     const searchSpecies = useCallback(async (query, limit = 20) => {
-        if (!query.trim()) {
-            toast.error("Please enter a search term");
-            return [];
-        }
-
         try {
             setLoading(true);
-            const response = await axios.get(`${BASE_URL}/api/species/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+            const response = await axiosClient.get(`/api/species/search?q=${encodeURIComponent(query)}&limit=${limit}`);
             setSearchResults(response.data);
             toast.success(`Found ${response.data.length} species`);
             return response.data;
         } catch (error) {
-            console.error("Search error:", error);
-            if (error.response?.status === 400) {
-                toast.error("Please enter a valid search term");
-            } else {
-                toast.error("Search failed. Please try again.");
-            }
+            setError("Failed to search species");
+            console.error("Error searching species:", error);
             return [];
         } finally {
             setLoading(false);
         }
     }, []);
 
-    // Global search (iNaturalist + local)
-    const globalSearch = useCallback(async (query, limit = 15) => {
-        if (!query.trim()) {
-            toast.error("Please enter a search term");
-            return [];
-        }
-
+    // Find species (alternative search)
+    const findSpecies = useCallback(async (query, limit = 20) => {
         try {
             setLoading(true);
-            const response = await axios.get(`${BASE_URL}/api/species/find?q=${encodeURIComponent(query)}&limit=${limit}`);
+            const response = await axiosClient.get(`/api/species/find?q=${encodeURIComponent(query)}&limit=${limit}`);
             setSearchResults(response.data);
             toast.success(`Found ${response.data.length} species`);
             return response.data;
         } catch (error) {
-            console.error("Global search error:", error);
-            if (error.response?.status === 400) {
-                toast.error("Please enter a valid search term");
-            } else if (error.response?.status === 404) {
-                toast.info("No species found with that search term");
-                setSearchResults([]);
-            } else {
-                toast.error("Search failed. Please try again.");
-            }
+            setError("Failed to find species");
+            console.error("Error finding species:", error);
             return [];
         } finally {
             setLoading(false);
@@ -96,15 +74,11 @@ export const SpeciesProvider = ({ children }) => {
     const getSpeciesById = useCallback(async (id) => {
         try {
             setLoading(true);
-            const response = await axios.get(`${BASE_URL}/api/species/${id}`);
+            const response = await axiosClient.get(`/api/species/${id}`);
             return response.data;
         } catch (error) {
+            setError("Failed to fetch species");
             console.error("Error fetching species:", error);
-            if (error.response?.status === 404) {
-                toast.error("Species not found");
-            } else {
-                toast.error("Failed to fetch species details");
-            }
             return null;
         } finally {
             setLoading(false);
@@ -113,43 +87,19 @@ export const SpeciesProvider = ({ children }) => {
 
     // Import species from iNaturalist
     const importSpecies = useCallback(async (taxonId) => {
-        if (!taxonId.trim()) {
-            toast.error("Please enter a valid taxon ID");
-            return null;
-        }
-
         try {
             setLoading(true);
-            const response = await axios.post(`${BASE_URL}/api/species/import/${taxonId}`);
+            const response = await axiosClient.post(`/api/species/import/${taxonId}`);
             const importedSpecies = response.data;
             
-            // Success message with species details
-            const speciesName = importedSpecies.commonName || importedSpecies.scientificName;
-            toast.success(`Successfully imported: ${speciesName}`);
+            // Update popular species list
+            setPopularSpecies(prev => [importedSpecies, ...prev.slice(0, -1)]);
             
-            // Immediately add to popular species list (at the beginning)
-            setPopularSpecies(prev => [importedSpecies, ...prev.slice(0, 9)]);
-            
-            // Also add to search results if we're currently viewing them
-            setSearchResults(prev => {
-                // Check if species is already in search results
-                const exists = prev.some(s => s.id === importedSpecies.id);
-                if (!exists) {
-                    return [importedSpecies, ...prev];
-                }
-                return prev;
-            });
-            
+            toast.success(`Successfully imported ${importedSpecies.commonName}`);
             return importedSpecies;
         } catch (error) {
-            console.error("Import error:", error);
-            if (error.response?.status === 404) {
-                toast.error("Taxon ID not found on iNaturalist");
-            } else if (error.response?.status === 409) {
-                toast.info("Species already exists in database");
-            } else {
-                toast.error("Failed to import species");
-            }
+            setError("Failed to import species");
+            console.error("Error importing species:", error);
             return null;
         } finally {
             setLoading(false);
@@ -158,17 +108,15 @@ export const SpeciesProvider = ({ children }) => {
 
     // Filter by class
     const filterByClass = useCallback(async (className, limit = 20) => {
-        if (!className) return [];
-        
         try {
             setLoading(true);
-            const response = await axios.get(`${BASE_URL}/api/species/class/${className}?limit=${limit}`);
+            const response = await axiosClient.get(`/api/species/class/${className}?limit=${limit}`);
             setFilterResults(response.data);
             toast.success(`Found ${response.data.length} species in class ${className}`);
             return response.data;
         } catch (error) {
-            console.error("Class filter error:", error);
-            toast.error("Failed to filter by class");
+            setError("Failed to filter by class");
+            console.error("Error filtering by class:", error);
             return [];
         } finally {
             setLoading(false);
@@ -177,17 +125,15 @@ export const SpeciesProvider = ({ children }) => {
 
     // Filter by order
     const filterByOrder = useCallback(async (orderName, limit = 20) => {
-        if (!orderName) return [];
-        
         try {
             setLoading(true);
-            const response = await axios.get(`${BASE_URL}/api/species/order/${orderName}?limit=${limit}`);
+            const response = await axiosClient.get(`/api/species/order/${orderName}?limit=${limit}`);
             setFilterResults(response.data);
             toast.success(`Found ${response.data.length} species in order ${orderName}`);
             return response.data;
         } catch (error) {
-            console.error("Order filter error:", error);
-            toast.error("Failed to filter by order");
+            setError("Failed to filter by order");
+            console.error("Error filtering by order:", error);
             return [];
         } finally {
             setLoading(false);
@@ -196,17 +142,15 @@ export const SpeciesProvider = ({ children }) => {
 
     // Filter by family
     const filterByFamily = useCallback(async (familyName, limit = 20) => {
-        if (!familyName) return [];
-        
         try {
             setLoading(true);
-            const response = await axios.get(`${BASE_URL}/api/species/family/${familyName}?limit=${limit}`);
+            const response = await axiosClient.get(`/api/species/family/${familyName}?limit=${limit}`);
             setFilterResults(response.data);
             toast.success(`Found ${response.data.length} species in family ${familyName}`);
             return response.data;
         } catch (error) {
-            console.error("Family filter error:", error);
-            toast.error("Failed to filter by family");
+            setError("Failed to filter by family");
+            console.error("Error filtering by family:", error);
             return [];
         } finally {
             setLoading(false);
@@ -219,16 +163,17 @@ export const SpeciesProvider = ({ children }) => {
         popularSpecies,
         searchResults,
         filterResults,
-        loadPopularSpecies,
+        fetchPopularSpecies,
         searchSpecies,
-        globalSearch,
+        findSpecies,
         getSpeciesById,
         importSpecies,
         filterByClass,
         filterByOrder,
         filterByFamily,
         setSearchResults,
-        setFilterResults
+        setFilterResults,
+        error
     };
 
     return (

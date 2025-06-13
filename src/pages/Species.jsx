@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { useSpecies } from "../contexts/SpeciesContext";
 import SpeciesCard from "../components/SpeciesCard";
-import SpeciesDetailModal from "../components/SpeciesDetailModal";
 import SearchBar from "../components/SearchBar";
 import TaxonomyFilter from "../components/TaxonomyFilter";
 import ImportModal from "../components/ImportModal";
@@ -10,7 +9,6 @@ import LoadingSpinner from "../components/LoadingSpinner";
 
 export default function Species() {
     const [searchQuery, setSearchQuery] = useState("");
-    const [selectedSpecies, setSelectedSpecies] = useState(null);
     const [importModal, setImportModal] = useState(false);
     const [taxonId, setTaxonId] = useState("");
     const [activeTab, setActiveTab] = useState("search");
@@ -19,14 +17,13 @@ export default function Species() {
     const [familyFilter, setFamilyFilter] = useState("");
 
     const {
-        loading,
         popularSpecies,
         searchResults,
         filterResults,
-        loadPopularSpecies,
+        loading,
+        fetchPopularSpecies,
         searchSpecies,
-        globalSearch,
-        getSpeciesById,
+        findSpecies,
         importSpecies,
         filterByClass,
         filterByOrder,
@@ -36,8 +33,8 @@ export default function Species() {
     } = useSpecies();
 
     useEffect(() => {
-        loadPopularSpecies();
-    }, [loadPopularSpecies]);
+        fetchPopularSpecies();
+    }, [fetchPopularSpecies]);
 
     const handleSearch = async (e) => {
         e.preventDefault();
@@ -46,7 +43,7 @@ export default function Species() {
 
     const handleGlobalSearch = async (e) => {
         e.preventDefault();
-        await globalSearch(searchQuery);
+        await findSpecies(searchQuery);
     };
 
     const handleImportSpecies = async () => {
@@ -82,11 +79,6 @@ export default function Species() {
         setActiveTab("filter");
     };
 
-    const handleSpeciesClick = async (species) => {
-        const detailedSpecies = await getSpeciesById(species.id);
-        setSelectedSpecies(detailedSpecies);
-    };
-
     const EmptyState = ({ message, subMessage }) => (
         <div className="text-center py-8">
             <p className="text-gray-300 mb-4">{message}</p>
@@ -105,7 +97,6 @@ export default function Species() {
                         <SpeciesCard 
                             key={speciesItem.id} 
                             species={speciesItem} 
-                            onClick={handleSpeciesClick}
                         />
                     ))}
                 </div>
@@ -205,14 +196,6 @@ export default function Species() {
                     </div>
                 )}
             </div>
-
-            {/* Species Detail Modal */}
-            {selectedSpecies && (
-                <SpeciesDetailModal
-                    species={selectedSpecies}
-                    onClose={() => setSelectedSpecies(null)}
-                />
-            )}
 
             {/* Import Modal */}
             <ImportModal

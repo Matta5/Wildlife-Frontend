@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Search, Filter, Calendar, MapPin, X } from "lucide-react";
 import { useObservations } from "../contexts/ObservationsContext";
 import { useAuth } from "../contexts/AuthContext";
 import ObservationCard from "../components/ObservationCard";
 import ObservationForm from "../components/ObservationForm";
 import LoadingSpinner from "../components/LoadingSpinner";
+import axiosClient from "../API/axiosClient";
 
 const Observations = () => {
     const [showForm, setShowForm] = useState(false);
@@ -12,9 +13,29 @@ const Observations = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [filterDate, setFilterDate] = useState("");
     const [filterLocation, setFilterLocation] = useState("");
+    const [observations, setObservations] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-    const { observations, loading, error, stats } = useObservations();
     const { isAuthenticated } = useAuth();
+
+    // Fetch observations from explore endpoint
+    useEffect(() => {
+        const fetchObservations = async () => {
+            try {
+                setLoading(true);
+                const response = await axiosClient.get('/observations/explore');
+                setObservations(response.data || []);
+            } catch (err) {
+                console.error('Error fetching observations:', err);
+                setError('Failed to load observations');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchObservations();
+    }, []);
 
     const handleCreateNew = () => {
         if (!isAuthenticated) {
@@ -39,6 +60,8 @@ const Observations = () => {
     const handleFormSuccess = () => {
         setShowForm(false);
         setEditingObservation(null);
+        // Refresh observations after creating/editing
+        window.location.reload();
     };
 
     // Filter observations based on search and filters
@@ -74,7 +97,7 @@ const Observations = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-white">Wildlife Observations</h1>
+                    <h1 className="text-3xl font-bold text-white">Explore Wildlife Observations</h1>
                     <p className="text-gray-400 mt-1">
                         Discover wildlife sightings from the community
                     </p>
@@ -91,7 +114,7 @@ const Observations = () => {
             {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-zinc-800 p-4 rounded-lg">
-                    <h3 className="text-lg font-medium text-gray-300">Total Observations</h3>
+                    <h3 className="text-lg font-medium text-gray-300">Community Observations</h3>
                     <p className="text-3xl font-bold text-white">{observations.length}</p>
                 </div>
                 <div className="bg-zinc-800 p-4 rounded-lg">

@@ -1,7 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axiosClient, { authEvents } from '../API/axiosClient';
-import { toast } from 'react-toastify';
+import { useToast } from './ToastContext';
 
 // Create the context
 export const AuthContext = createContext();
@@ -10,7 +10,9 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
     const navigate = useNavigate();
+    const { showInfo, showError } = useToast();
     const isMountedRef = useRef(true);
 
     // Cleanup on unmount
@@ -29,8 +31,9 @@ export const AuthProvider = ({ children }) => {
             if (isMountedRef.current) {
                 setUser(null);
                 setIsAuthenticated(false);
+                setHasCheckedAuth(true);
                 if (showToast) {
-                    toast.info("Je bent uitgelogd");
+                    showInfo("Je bent uitgelogd");
                 }
                 navigate('/login');
             }
@@ -39,6 +42,7 @@ export const AuthProvider = ({ children }) => {
             if (isMountedRef.current) {
                 setUser(null);
                 setIsAuthenticated(false);
+                setHasCheckedAuth(true);
                 navigate('/login');
             }
         } finally {
@@ -46,10 +50,10 @@ export const AuthProvider = ({ children }) => {
                 setIsLoading(false);
             }
         }
-    }, [navigate]);
+    }, [navigate, showInfo]);
 
     const checkAuthStatus = useCallback(async () => {
-        if (!isMountedRef.current) return;
+        if (!isMountedRef.current || hasCheckedAuth) return;
 
         setIsLoading(true);
         try {
@@ -57,18 +61,20 @@ export const AuthProvider = ({ children }) => {
             if (isMountedRef.current) {
                 setUser(response.data);
                 setIsAuthenticated(true);
+                setHasCheckedAuth(true);
             }
         } catch (error) {
             if (isMountedRef.current) {
                 setUser(null);
                 setIsAuthenticated(false);
+                setHasCheckedAuth(true);
             }
         } finally {
             if (isMountedRef.current) {
                 setIsLoading(false);
             }
         }
-    }, []);
+    }, [hasCheckedAuth]);
 
     // Call once on mount
     useEffect(() => {
@@ -80,14 +86,14 @@ export const AuthProvider = ({ children }) => {
         const listenerId = authEvents.onAuthFailed(() => {
             if (isMountedRef.current) {
                 handleLogout(false); // Don't show regular logout toast
-                toast.error("Je sessie is verlopen, log opnieuw in");
+                showError("Je sessie is verlopen, log opnieuw in");
             }
         });
 
         return () => {
             authEvents.removeListener(listenerId);
         };
-    }, [handleLogout]); // Only depend on handleLogout
+    }, [handleLogout, showError]); // Only depend on handleLogout and showError
 
     const login = async (credentials) => {
         if (!isMountedRef.current) return false;
@@ -102,14 +108,14 @@ export const AuthProvider = ({ children }) => {
             if (isMountedRef.current) {
                 setUser(response.data.user);
                 setIsAuthenticated(true);
-                toast.success("Succesvol ingelogd!");
+                setHasCheckedAuth(true);
             }
 
             return true;
         } catch (error) {
             if (isMountedRef.current) {
                 const errorMessage = error.response?.data?.message || "Login mislukt. Probeer het opnieuw.";
-                toast.error(errorMessage);
+                showError(errorMessage);
             }
             return false;
         } finally {

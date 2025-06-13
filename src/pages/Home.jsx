@@ -1,17 +1,33 @@
 import { Link } from "react-router-dom";
-
+import { useAuth } from "../contexts/AuthContext";
 
 const Home = () => {
+    const { isAuthenticated, user } = useAuth();
+
     return (
         <div>
             <section className="hero bg-black pt-35 pb-20">
                 <div className="container mx-auto text-center">
                     <h1 className="text-4xl font-bold text-white mb-4">Document and Share Your Nature Observations</h1>
                     <p className="text-lg text-white mb-6">Join our community of nature enthusiasts to identify species, share discoveries, and learn about biodiversity.</p>
-                    <div className="flex justify-center gap-4">
-                        <Link to="/SignUp" className="px-4 py-2 bg-white text-black rounded hover:bg-gray-200 focus:outline-2 focus:outline-offset-2 focus:outline-white active:bg-gray-200">Get Started</Link>
-                        <Link to="/Observations" className="border border-gray-500 text-white py-2 px-4 rounded text-lg hover:bg-neutral-950">Browse Observations</Link>
-                    </div>
+                    
+                    {isAuthenticated ? (
+                        // Welkom bericht voor ingelogde gebruikers
+                        <div className="flex flex-col items-center gap-4">
+                            <p className="text-white text-lg mb-4">Welcome back, {user.username}!</p>
+                            <div className="flex justify-center gap-4">
+                                <Link to="/recognition" className="px-4 py-2 bg-white text-black rounded hover:bg-gray-200 focus:outline-2 focus:outline-offset-2 focus:outline-white active:bg-gray-200">Identify Species</Link>
+                                <Link to="/observations" className="border border-gray-500 text-white py-2 px-4 rounded text-lg hover:bg-neutral-950">Explore Observations</Link>
+                                <Link to="/account" className="border border-gray-500 text-white py-2 px-4 rounded text-lg hover:bg-neutral-950">My Account</Link>
+                            </div>
+                        </div>
+                    ) : (
+                        // Knoppen voor niet-ingelogde gebruikers
+                        <div className="flex justify-center gap-4">
+                            <Link to="/signup" className="px-4 py-2 bg-white text-black rounded hover:bg-gray-200 focus:outline-2 focus:outline-offset-2 focus:outline-white active:bg-gray-200">Get Started</Link>
+                            <Link to="/observations" className="border border-gray-500 text-white py-2 px-4 rounded text-lg hover:bg-neutral-950">Browse Observations</Link>
+                        </div>
+                    )}
                 </div>
             </section>
 

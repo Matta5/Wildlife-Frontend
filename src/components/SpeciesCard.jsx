@@ -1,6 +1,9 @@
-import { Eye, Image as ImageIcon } from "lucide-react";
+import { Image as ImageIcon } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
-const SpeciesCard = ({ species, onClick, showImage = true }) => {
+const SpeciesCard = ({ species, showImage = true }) => {
+    const navigate = useNavigate();
+
     const handleImageError = (e) => {
         e.target.style.display = 'none';
         e.target.nextSibling.style.display = 'flex';
@@ -13,10 +16,14 @@ const SpeciesCard = ({ species, onClick, showImage = true }) => {
         }
     };
 
+    const handleClick = () => {
+        navigate(`/species/${species.id}`);
+    };
+
     return (
         <div 
             className="bg-zinc-800 border border-gray-700 rounded-lg p-4 hover:bg-zinc-700 cursor-pointer transition-colors group"
-            onClick={() => onClick(species)}
+            onClick={handleClick}
         >
             {/* Image Section */}
             {showImage && species.imageUrl && (
@@ -47,7 +54,6 @@ const SpeciesCard = ({ species, onClick, showImage = true }) => {
                         {species.scientificName}
                     </p>
                 </div>
-                <Eye className="text-gray-400 group-hover:text-white w-5 h-5 transition-colors" />
             </div>
 
             {/* Taxonomy Info */}

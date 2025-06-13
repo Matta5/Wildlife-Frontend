@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import axios from "axios";
+import axiosClient from "../API/axiosClient";
 import { useAuth } from "./AuthContext";
 
 const ObservationsContext = createContext();
@@ -22,14 +22,13 @@ export const ObservationsProvider = ({ children }) => {
     });
     
     const { user } = useAuth();
-    const baseURL = "http://localhost:7186";
 
     // Fetch all observations (limit 30)
     const fetchObservations = async () => {
         setLoading(true);
         setError(null);
         try {
-            const response = await axios.get(`${baseURL}/observations?limit=30`);
+            const response = await axiosClient.get("/observations?limit=30");
             setObservations(response.data);
             
             // Calculate stats for current user
@@ -76,12 +75,7 @@ export const ObservationsProvider = ({ children }) => {
                 // Add image
                 formData.append("image", imageFile);
 
-                response = await axios.post(`${baseURL}/observations`, formData, {
-                    withCredentials: true,
-                    headers: {
-                        "Content-Type": "multipart/form-data",
-                    },
-                });
+                response = await axiosClient.post("/observations", formData);
             } else {
                 // Use JSON endpoint for observations without images
                 const jsonData = {
@@ -92,12 +86,7 @@ export const ObservationsProvider = ({ children }) => {
                     longitude: observationData.longitude
                 };
 
-                response = await axios.post(`${baseURL}/observations/simple`, jsonData, {
-                    withCredentials: true,
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                });
+                response = await axiosClient.post("/observations/simple", jsonData);
             }
 
             // Refresh observations after creating
@@ -115,7 +104,7 @@ export const ObservationsProvider = ({ children }) => {
     // Get a single observation
     const getObservation = async (id) => {
         try {
-            const response = await axios.get(`${baseURL}/observations/${id}`);
+            const response = await axiosClient.get(`/observations/${id}`);
             return response.data;
         } catch (err) {
             setError(err.response?.data?.message || "Failed to fetch observation");
@@ -129,9 +118,7 @@ export const ObservationsProvider = ({ children }) => {
         setLoading(true);
         setError(null);
         try {
-            const response = await axios.patch(`${baseURL}/observations/${id}`, updateData, {
-                withCredentials: true,
-            });
+            const response = await axiosClient.patch(`/observations/${id}`, updateData);
             
             // Refresh observations after updating
             await fetchObservations();
@@ -153,12 +140,7 @@ export const ObservationsProvider = ({ children }) => {
             const formData = new FormData();
             formData.append("image", imageFile);
 
-            const response = await axios.patch(`${baseURL}/observations/${id}/image`, formData, {
-                withCredentials: true,
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                },
-            });
+            const response = await axiosClient.patch(`/observations/${id}/image`, formData);
             
             // Refresh observations after updating
             await fetchObservations();
@@ -177,9 +159,7 @@ export const ObservationsProvider = ({ children }) => {
         setLoading(true);
         setError(null);
         try {
-            const response = await axios.delete(`${baseURL}/observations/${id}`, {
-                withCredentials: true,
-            });
+            const response = await axiosClient.delete(`/observations/${id}`);
             
             // Refresh observations after deleting
             await fetchObservations();
