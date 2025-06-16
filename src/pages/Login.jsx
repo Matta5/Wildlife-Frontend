@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { useToast } from "../contexts/ToastContext";
+import { toast } from 'react-toastify';
 
 const Login = () => {
     const [formData, setFormData] = useState({
@@ -13,7 +13,6 @@ const Login = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const { login } = useAuth();
-    const { showSuccess, showError } = useToast();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -33,7 +32,7 @@ const Login = () => {
             });
 
             if (success) {
-                showSuccess("Login succesvol! Welkom terug!");
+                toast.success("Login succesvol! Welkom terug!");
                 setFormData({
                     username: "",
                     password: ""
@@ -53,7 +52,7 @@ const Login = () => {
                 errorMessage = "Kan geen verbinding maken met de server. Controleer je internetverbinding.";
             }
             
-            showError(errorMessage);
+            toast.error(errorMessage);
         } finally {
             setIsSubmitting(false);
         }

@@ -19,7 +19,8 @@ import "./index.css";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { SpeciesProvider } from "./contexts/SpeciesContext";
 import { ObservationsProvider } from "./contexts/ObservationsContext";
-import { ToastProvider } from "./contexts/ToastContext";
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // Beveiligde route component
 const ProtectedRoute = ({ children }) => {
@@ -58,7 +59,6 @@ const PublicOnlyRoute = ({ children }) => {
 // Route configuratie met AuthProvider
 const AppRoutes = () => {
   return (
-    <ToastProvider>
       <AuthProvider>
         <Routes>
           <Route path="/" element={<Layout />}>
@@ -117,7 +117,6 @@ const AppRoutes = () => {
           </Route>
         </Routes>
       </AuthProvider>
-    </ToastProvider>
   );
 };
 
@@ -131,4 +130,9 @@ export default function App() {
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App />);
+root.render(
+  <>
+    <App />
+    <ToastContainer theme="dark" autoClose={2500} position="bottom-right" />
+  </>
+);

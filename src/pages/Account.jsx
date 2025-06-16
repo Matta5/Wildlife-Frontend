@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import axiosClient from "../API/axiosClient";
 import { useAuth } from "../contexts/AuthContext";
 import { useObservations } from "../contexts/ObservationsContext";
-import { useToast } from "../contexts/ToastContext";
 import { X, Pencil } from "lucide-react";
+import { toast } from 'react-toastify';
 
 export default function AccountPage() {
     const [isEditingName, setIsEditingName] = useState(false);
@@ -20,7 +20,6 @@ export default function AccountPage() {
 
     const { logout } = useAuth();
     const { observations, stats } = useObservations();
-    const { showSuccess, showError } = useToast();
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -40,12 +39,12 @@ export default function AccountPage() {
 
     const handleUsernamePatch = async () => {
         if (!newUsername.trim()) {
-            showError("Username cannot be empty.");
+            toast.error("Username cannot be empty.");
             return;
         }
 
         if (newUsername.length < 3) {
-            showError("Username must be at least 3 characters long.");
+            toast.error("Username must be at least 3 characters long.");
             return;
         }
 
@@ -61,7 +60,7 @@ export default function AccountPage() {
             await axiosClient.patch("/users", formData);
             setUser(prev => ({ ...prev, username: newUsername }));
             setIsEditingName(false);
-            showSuccess("Username updated successfully!");
+            toast.success("Username updated successfully!");
         } catch (err) {
             let errorMessage = "Failed to update username. Please try again.";
             
@@ -73,7 +72,7 @@ export default function AccountPage() {
                 errorMessage = "Cannot connect to server. Check your internet connection.";
             }
             
-            showError(errorMessage);
+            toast.error(errorMessage);
             console.error("Username patch error:", err);
         } finally {
             setIsSubmitting(false);
@@ -82,7 +81,7 @@ export default function AccountPage() {
 
     const handleProfilePictureUpload = async () => {
         if (!uploadFile) {
-            showError("Please select an image first.");
+            toast.error("Please select an image first.");
             return;
         }
 
@@ -95,7 +94,7 @@ export default function AccountPage() {
             setIsEditingPicture(false);
             setUploadFile(null);
             setPreviewImage(null);
-            showSuccess("Profile picture updated successfully!");
+            toast.success("Profile picture updated successfully!");
         } catch (err) {
             let errorMessage = "Failed to update profile picture. Please try again.";
             
@@ -105,7 +104,7 @@ export default function AccountPage() {
                 errorMessage = "Cannot connect to server. Check your internet connection.";
             }
             
-            showError(errorMessage);
+            toast.error(errorMessage);
             console.error("Profile picture upload error:", err);
         } finally {
             setIsSubmitting(false);

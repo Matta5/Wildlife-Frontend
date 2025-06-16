@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Filter, Calendar, MapPin, X } from "lucide-react";
+import { Plus, Search, Filter, Calendar, MapPin, X, Eye, User } from "lucide-react";
 import { useObservations } from "../contexts/ObservationsContext";
 import { useAuth } from "../contexts/AuthContext";
 import ObservationCard from "../components/ObservationCard";
 import ObservationForm from "../components/ObservationForm";
 import LoadingSpinner from "../components/LoadingSpinner";
 import axiosClient from "../API/axiosClient";
+import { useNavigate } from "react-router-dom";
 
 const Observations = () => {
     const [showForm, setShowForm] = useState(false);
@@ -14,10 +15,13 @@ const Observations = () => {
     const [filterDate, setFilterDate] = useState("");
     const [filterLocation, setFilterLocation] = useState("");
     const [observations, setObservations] = useState([]);
+    const [myObservations, setMyObservations] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [activeTab, setActiveTab] = useState("explore");
 
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, user } = useAuth();
+    const navigate = useNavigate();
 
     // Fetch observations from explore endpoint
     useEffect(() => {
@@ -37,10 +41,38 @@ const Observations = () => {
         fetchObservations();
     }, []);
 
+    // Fetch user's own observations only when "my" tab is active and user is authenticated
+    useEffect(() => {
+        const fetchMyObservations = async () => {
+            if (activeTab !== "my" || !isAuthenticated || !user) {
+                setMyObservations([]);
+                return;
+            }
+            
+            try {
+                const response = await axiosClient.get(`/observations/GetAllFromUser/${user.id}`);
+                setMyObservations(response.data || []);
+            } catch (err) {
+                console.error('Error fetching my observations:', err);
+                setMyObservations([]);
+            }
+        };
+
+        fetchMyObservations();
+    }, [activeTab, isAuthenticated, user]);
+
+    // Switch to explore tab if not authenticated
+    useEffect(() => {
+        if (!isAuthenticated && activeTab === "my") {
+            setActiveTab("explore");
+        }
+    }, [isAuthenticated, activeTab]);
+
     const handleCreateNew = () => {
         if (!isAuthenticated) {
-            // Redirect to login with return URL
-            window.location.href = `/login?returnUrl=${encodeURIComponent(window.location.pathname)}`;
+            // Store the current URL to return after login
+            const returnUrl = encodeURIComponent(window.location.pathname);
+            navigate(`/login?returnUrl=${returnUrl}`);
             return;
         }
         setEditingObservation(null);
@@ -48,6 +80,11 @@ const Observations = () => {
     };
 
     const handleEdit = (observation) => {
+        if (!isAuthenticated) {
+            const returnUrl = encodeURIComponent(window.location.pathname);
+            navigate(`/login?returnUrl=${returnUrl}`);
+            return;
+        }
         setEditingObservation(observation);
         setShowForm(true);
     };
@@ -65,22 +102,27 @@ const Observations = () => {
     };
 
     // Filter observations based on search and filters
-    const filteredObservations = observations.filter(obs => {
-        const matchesSearch = !searchTerm || 
-            obs.species?.commonName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            obs.species?.scientificName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            obs.body?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            obs.user?.username?.toLowerCase().includes(searchTerm.toLowerCase());
-        
-        const matchesDate = !filterDate || 
-            obs.dateObserved?.startsWith(filterDate);
-        
-        const matchesLocation = !filterLocation || 
-            (obs.latitude && obs.longitude && 
-             `${obs.latitude}, ${obs.longitude}`.includes(filterLocation.toLowerCase()));
-        
-        return matchesSearch && matchesDate && matchesLocation;
-    });
+    const getFilteredObservations = (obsList) => {
+        return obsList.filter(obs => {
+            const matchesSearch = !searchTerm || 
+                obs.species?.commonName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                obs.species?.scientificName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                obs.body?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                obs.user?.username?.toLowerCase().includes(searchTerm.toLowerCase());
+            
+            const matchesDate = !filterDate || 
+                obs.dateObserved?.startsWith(filterDate);
+            
+            const matchesLocation = !filterLocation || 
+                (obs.latitude && obs.longitude && 
+                 `${obs.latitude}, ${obs.longitude}`.includes(filterLocation.toLowerCase()));
+            
+            return matchesSearch && matchesDate && matchesLocation;
+        });
+    };
+
+    const filteredObservations = getFilteredObservations(observations);
+    const filteredMyObservations = getFilteredObservations(myObservations);
 
     if (loading && observations.length === 0) {
         return (
@@ -97,9 +139,12 @@ const Observations = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-white">Explore Wildlife Observations</h1>
+                    <h1 className="text-3xl font-bold text-white">Wildlife Observations</h1>
                     <p className="text-gray-400 mt-1">
-                        Discover wildlife sightings from the community
+                        {activeTab === "explore" 
+                            ? "Discover wildlife sightings from the community"
+                            : "View and manage your own observations"
+                        }
                     </p>
                 </div>
                 <button
@@ -111,27 +156,61 @@ const Observations = () => {
                 </button>
             </div>
 
+            {/* Tabs */}
+            <div className="flex border-b border-gray-700">
+                <button
+                    onClick={() => setActiveTab("explore")}
+                    className={`flex items-center gap-2 px-4 py-2 ${
+                        activeTab === "explore" 
+                            ? "border-b-2 border-blue-500 text-blue-400" 
+                            : "text-gray-400 hover:text-white"
+                    }`}
+                >
+                    <Eye className="w-4 h-4" />
+                    Explore Community
+                </button>
+                {isAuthenticated && (
+                    <button
+                        onClick={() => setActiveTab("my")}
+                        className={`flex items-center gap-2 px-4 py-2 ${
+                            activeTab === "my" 
+                                ? "border-b-2 border-blue-500 text-blue-400" 
+                                : "text-gray-400 hover:text-white"
+                        }`}
+                    >
+                        <User className="w-4 h-4" />
+                        My Observations ({myObservations.length})
+                    </button>
+                )}
+            </div>
+
             {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-zinc-800 p-4 rounded-lg">
-                    <h3 className="text-lg font-medium text-gray-300">Community Observations</h3>
-                    <p className="text-3xl font-bold text-white">{observations.length}</p>
+                    <h3 className="text-lg font-medium text-gray-300">
+                        {activeTab === "explore" ? "Community Observations" : "My Observations"}
+                    </h3>
+                    <p className="text-3xl font-bold text-white">
+                        {activeTab === "explore" ? observations.length : myObservations.length}
+                    </p>
                 </div>
                 <div className="bg-zinc-800 p-4 rounded-lg">
                     <h3 className="text-lg font-medium text-gray-300">Unique Species</h3>
                     <p className="text-3xl font-bold text-white">
-                        {new Set(observations.map(obs => obs.speciesId)).size}
+                        {new Set((activeTab === "explore" ? observations : myObservations)
+                            .map(obs => obs.speciesId)).size}
                     </p>
                 </div>
                 <div className="bg-zinc-800 p-4 rounded-lg">
                     <h3 className="text-lg font-medium text-gray-300">This Month</h3>
                     <p className="text-3xl font-bold text-white">
-                        {observations.filter(obs => {
-                            const obsDate = new Date(obs.dateObserved);
-                            const now = new Date();
-                            return obsDate.getMonth() === now.getMonth() && 
-                                   obsDate.getFullYear() === now.getFullYear();
-                        }).length}
+                        {(activeTab === "explore" ? observations : myObservations)
+                            .filter(obs => {
+                                const obsDate = new Date(obs.dateObserved);
+                                const now = new Date();
+                                return obsDate.getMonth() === now.getMonth() && 
+                                       obsDate.getFullYear() === now.getFullYear();
+                            }).length}
                     </p>
                 </div>
             </div>
@@ -186,41 +265,58 @@ const Observations = () => {
             )}
 
             {/* Observations Grid */}
-            {filteredObservations.length === 0 ? (
-                <div className="text-center py-12">
-                    <div className="text-gray-400 mb-4">
-                        {observations.length === 0 ? (
-                            <>
-                                <p className="text-xl mb-2">No observations yet</p>
-                                <p>Be the first to share a wildlife sighting!</p>
-                            </>
-                        ) : (
-                            <>
-                                <p className="text-xl mb-2">No observations match your filters</p>
-                                <p>Try adjusting your search criteria or filters.</p>
-                            </>
-                        )}
+            {(() => {
+                const currentObservations = activeTab === "explore" ? filteredObservations : filteredMyObservations;
+                const allObservations = activeTab === "explore" ? observations : myObservations;
+                
+                if (currentObservations.length === 0) {
+                    return (
+                        <div className="text-center py-12">
+                            <div className="text-gray-400 mb-4">
+                                {allObservations.length === 0 ? (
+                                    activeTab === "explore" ? (
+                                        <>
+                                            <p className="text-xl mb-2">No community observations yet</p>
+                                            <p>Be the first to share a wildlife sighting!</p>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <p className="text-xl mb-2">You haven't made any observations yet</p>
+                                            <p>Start by creating your first wildlife observation!</p>
+                                        </>
+                                    )
+                                ) : (
+                                    <>
+                                        <p className="text-xl mb-2">No observations match your filters</p>
+                                        <p>Try adjusting your search criteria or filters.</p>
+                                    </>
+                                )}
+                            </div>
+                            {allObservations.length === 0 && (
+                                <button
+                                    onClick={handleCreateNew}
+                                    className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
+                                >
+                                    {isAuthenticated ? "Create Your First Observation" : "Login to Share"}
+                                </button>
+                            )}
+                        </div>
+                    );
+                }
+
+                return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {currentObservations.map((observation) => (
+                            <ObservationCard
+                                key={observation.id}
+                                observation={observation}
+                                onEdit={handleEdit}
+                                isOwnObservation={activeTab === "my"}
+                            />
+                        ))}
                     </div>
-                    {observations.length === 0 && (
-                        <button
-                            onClick={handleCreateNew}
-                            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
-                        >
-                            {isAuthenticated ? "Create Your First Observation" : "Login to Share"}
-                        </button>
-                    )}
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredObservations.map((observation) => (
-                        <ObservationCard
-                            key={observation.id}
-                            observation={observation}
-                            onEdit={handleEdit}
-                        />
-                    ))}
-                </div>
-            )}
+                );
+            })()}
 
             {/* Observation Form Modal */}
             {showForm && (

@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useObservations } from "../contexts/ObservationsContext";
 import { useAuth } from "../contexts/AuthContext";
 
-const ObservationCard = ({ observation, onEdit, onView }) => {
+const ObservationCard = ({ observation, onEdit, onView, isOwnObservation = false }) => {
     const [isDeleting, setIsDeleting] = useState(false);
     const { deleteObservation } = useObservations();
     const { user } = useAuth();
@@ -57,27 +57,31 @@ const ObservationCard = ({ observation, onEdit, onView }) => {
                 handleView();
             }}
         >
-            {/* User Info Header */}
+            {/* User Info Header - Show date/time for own observations, full user info for others */}
             <div className="flex items-center gap-3 mb-3">
-                <div className="h-8 w-8 rounded-full overflow-hidden bg-gray-700">
-                    {observation.user?.profilePicture && (
-                        <img
-                            src={observation.user.profilePicture}
-                            alt={observation.user.username}
-                            className="h-full w-full object-cover"
-                        />
-                    )}
-                </div>
+                {!isOwnObservation && (
+                    <div className="h-8 w-8 rounded-full overflow-hidden bg-gray-700">
+                        {observation.user?.profilePicture && (
+                            <img
+                                src={observation.user.profilePicture}
+                                alt={observation.user.username}
+                                className="h-full w-full object-cover"
+                            />
+                        )}
+                    </div>
+                )}
                 <div className="flex-1">
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/users/${observation.userId}`);
-                        }}
-                        className="text-sm font-medium text-white hover:text-blue-300 transition-colors"
-                    >
-                        {observation.user?.username}
-                    </button>
+                    {!isOwnObservation && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/users/${observation.userId}`);
+                            }}
+                            className="text-sm font-medium text-white hover:text-blue-300 transition-colors"
+                        >
+                            {observation.user?.username}
+                        </button>
+                    )}
                     <p className="text-xs text-gray-400">{formatDate(observation.dateObserved)} at {formatTime(observation.dateObserved)}</p>
                 </div>
                 {isOwner && (
