@@ -113,21 +113,13 @@ const SignUp = () => {
                 navigate("/account");
             }
         } catch (err) {
-            let errorMessage = "An error occurred. Please try again.";
-            
-            if (err.response?.data?.message) {
-                errorMessage = err.response.data.message;
-            } else if (err.response?.status === 409) {
-                if (err.response.data.includes("Username")) {
-                    errorMessage = "This username is already in use.";
-                } else if (err.response.data.includes("Email")) {
-                    errorMessage = "This email address is already in use.";
-                }
-            } else if (err.response?.status === 0) {
-                errorMessage = "Cannot connect to server. Check your internet connection.";
+            if (err.response?.status === 409) {
+                toast.error(err.response.data);
+            } else if (!err.response || err.response?.status === 0) {
+                toast.error("Cannot connect to server. Check your internet connection.");
+            } else {
+                toast.error(err.response?.data?.message || "An error occurred. Please try again.");
             }
-            
-            toast.error(errorMessage);
             console.error("Signup error:", err);
         } finally {
             setIsLoading(false);

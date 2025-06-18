@@ -17,25 +17,46 @@ export default function AccountPage() {
     const [previewImage, setPreviewImage] = useState(null);
     const [uploadFile, setUploadFile] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [userObservations, setUserObservations] = useState([]);
+    const [observationStats, setObservationStats] = useState({
+        totalObservations: 0,
+        uniqueSpeciesObserved: 0
+    });
 
     const { logout } = useAuth();
-    const { observations, stats } = useObservations();
     const navigate = useNavigate();
 
     useEffect(() => {
-        const fetchUser = async () => {
+        const fetchUserData = async () => {
             try {
-                const res = await axiosClient.get("/auth/me");
-                setUser(res.data);
+                const [userRes, observationsRes] = await Promise.all([
+                    axiosClient.get("/auth/me"),
+                    user?.id ? axiosClient.get(`/observations/GetAllFromUser/${user.id}`) : Promise.resolve({ data: [] })
+                ]);
+                
+                setUser(userRes.data);
+                
+                if (userRes.data?.id) {
+                    const observations = observationsRes.data || [];
+                    setUserObservations(observations);
+                    
+                    // Calculate stats
+                    const uniqueSpecies = new Set(observations.map(obs => obs.speciesId)).size;
+                    setObservationStats({
+                        totalObservations: observations.length,
+                        uniqueSpeciesObserved: uniqueSpecies
+                    });
+                }
             } catch (error) {
+                console.error("Error fetching user data:", error);
                 setUser(null);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchUser();
-    }, []);
+        fetchUserData();
+    }, [user?.id]);
 
     const handleUsernamePatch = async () => {
         if (!newUsername.trim()) {
@@ -138,12 +159,6 @@ export default function AccountPage() {
         }
     };
 
-    // Get recent observations for current user (last 5)
-    const userObservations = observations.filter(obs => obs.userId === user?.id);
-    const recentObservations = userObservations
-        .sort((a, b) => new Date(b.dateObserved) - new Date(a.dateObserved))
-        .slice(0, 5);
-
     const formatDate = (dateString) => {
         return new Date(dateString).toLocaleDateString('en-US', {
             year: 'numeric',
@@ -213,12 +228,12 @@ export default function AccountPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-zinc-800 p-6 rounded-lg shadow">
                     <h2 className="text-lg font-medium text-gray-300">Total Observations</h2>
-                    <p className="text-4xl font-bold mt-2 text-white">{stats.totalObservations}</p>
+                    <p className="text-4xl font-bold mt-2 text-white">{observationStats.totalObservations}</p>
                     <p className="text-sm text-gray-400 mt-1">Wildlife sightings recorded</p>
                 </div>
                 <div className="bg-zinc-800 p-6 rounded-lg shadow">
                     <h2 className="text-lg font-medium text-gray-300">Unique Species</h2>
-                    <p className="text-4xl font-bold mt-2 text-white">{stats.uniqueSpeciesObserved}</p>
+                    <p className="text-4xl font-bold mt-2 text-white">{observationStats.uniqueSpeciesObserved}</p>
                     <p className="text-sm text-gray-400 mt-1">Different species observed</p>
                 </div>
             </div>
@@ -227,11 +242,14 @@ export default function AccountPage() {
             <div className="bg-zinc-900 shadow rounded-lg p-6">
                 <h2 className="text-xl font-semibold">Recent Observations</h2>
                 <p className="text-sm text-gray-400 mb-4">Your latest wildlife sightings</p>
-                {recentObservations.length === 0 ? (
+                {userObservations.length === 0 ? (
                     <p className="text-gray-500">No observations yet.</p>
                 ) : (
                     <ul className="space-y-2">
-                        {recentObservations.map((obs) => (
+                        {userObservations
+                            .sort((a, b) => new Date(b.dateObserved) - new Date(a.dateObserved))
+                            .slice(0, 5)
+                            .map((obs) => (
                             <li
                                 key={obs.id}
                                 className="p-4 border border-gray-700 rounded hover:bg-zinc-800 cursor-pointer"

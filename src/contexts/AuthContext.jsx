@@ -98,9 +98,8 @@ export const AuthProvider = ({ children }) => {
             }
             return false;
         } catch (error) {
-            const errorMessage = error.response?.data?.message || "Sign up failed. Please try again.";
-            toast.error(errorMessage);
-            return false;
+            // Instead of showing toast here, throw the error to be handled by the component
+            throw error;
         }
     };
 

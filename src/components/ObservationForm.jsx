@@ -28,7 +28,6 @@ const ObservationForm = ({ observation = null, onClose, onSuccess, prefillData =
     const { createObservation, updateObservation, updateObservationImage } = useObservations();
     const { user, isAuthenticated } = useAuth();
 
-    // Initialize form with observation data if editing
     useEffect(() => {
         if (observation) {
             setFormData({
@@ -39,7 +38,6 @@ const ObservationForm = ({ observation = null, onClose, onSuccess, prefillData =
                 longitude: observation.longitude || ""
             });
             
-            // Set selected species if available
             if (observation.species) {
                 setSelectedSpecies(observation.species);
             }
@@ -50,10 +48,8 @@ const ObservationForm = ({ observation = null, onClose, onSuccess, prefillData =
         }
     }, [observation]);
 
-    // Initialize form with prefill data from recognition
     useEffect(() => {
         if (prefillData) {
-            // Set the image from recognition
             if (prefillData.imageFile) {
                 setImageFile(prefillData.imageFile);
             }
@@ -61,7 +57,6 @@ const ObservationForm = ({ observation = null, onClose, onSuccess, prefillData =
                 setPreviewImage(prefillData.previewImage);
             }
 
-            // Set species info if available
             if (prefillData.species) {
                 const species = prefillData.species;
                 setSelectedSpecies({
@@ -70,7 +65,6 @@ const ObservationForm = ({ observation = null, onClose, onSuccess, prefillData =
                     commonName: species.commonName
                 });
                 
-                // Pre-fill body with recognition info
                 setFormData(prev => ({
                     ...prev,
                     body: `Identified as ${species.commonName || species.species} with ${Math.round(species.confidence * 100)}% confidence`
@@ -144,21 +138,49 @@ const ObservationForm = ({ observation = null, onClose, onSuccess, prefillData =
 
         try {
             if (observation) {
-                // Update existing observation
-                await updateObservation(observation.id, formData);
+                // Update existing observation - only send changed fields
+                const changedFields = {};
+                const originalData = {
+                    speciesId: observation.speciesId,
+                    body: observation.body || "",
+                    dateObserved: observation.dateObserved ? new Date(observation.dateObserved).toISOString().split('T')[0] : "",
+                    latitude: observation.latitude || "",
+                    longitude: observation.longitude || ""
+                };
+
+                // Compare and only include changed fields
+                Object.keys(formData).forEach(key => {
+                    if (formData[key] !== originalData[key]) {
+                        changedFields[key] = formData[key] || null;
+                    }
+                });
+
+                if (Object.keys(changedFields).length > 0) {
+                    await updateObservation(observation.id, changedFields);
+                }
+                
                 if (imageFile) {
                     await updateObservationImage(observation.id, imageFile);
                 }
+                
+                toast.success("Observation updated successfully", {
+                    onClose: () => {
+                        onSuccess?.();
+                        onClose();
+                    }
+                });
             } else {
-                // Create new observation
+                // Create new observation - send all fields
                 await createObservation(formData, imageFile);
+                toast.success("Observation created successfully", {
+                    onClose: () => {
+                        onSuccess?.();
+                        onClose();
+                    }
+                });
             }
-            
-            onSuccess?.();
-            onClose();
         } catch (err) {
             setError(err.response?.data?.message || "Failed to save observation");
-        } finally {
             setIsSubmitting(false);
         }
     };
@@ -175,7 +197,7 @@ const ObservationForm = ({ observation = null, onClose, onSuccess, prefillData =
         }
 
         if (isRecognizing) {
-            return; // Prevent multiple simultaneous calls
+            return;
         }
 
         setIsRecognizing(true);
@@ -188,31 +210,27 @@ const ObservationForm = ({ observation = null, onClose, onSuccess, prefillData =
             console.log("Recognition response:", response.data);
 
             if (response.data.success) {
-                // Transform the backend response to match frontend expectations
                 const mainResult = {
                     species: response.data.scientificName,
                     commonName: response.data.preferredEnglishName,
-                    confidence: response.data.confidence / 2000, // Normalize confidence to 0-1 range
+                    confidence: response.data.confidence / 2000,
                     description: `Scientific name: ${response.data.scientificName}`
                 };
 
-                // Add alternative results
                 const alternativeResults = response.data.alternativeResults?.map(alt => ({
                     species: alt.scientificName,
                     commonName: alt.preferredEnglishName,
-                    confidence: alt.confidence / 2000, // Normalize confidence to 0-1 range
+                    confidence: alt.confidence / 2000,
                     description: `Scientific name: ${alt.scientificName}`,
                     taxonId: alt.taxonId,
                     imageUrl: alt.imageUrl
                 })) || [];
 
-                // Combine main result with alternatives (top 5)
                 const allResults = [mainResult, ...alternativeResults].slice(0, 5);
 
                 setRecognitionResults(allResults);
                 setShowRecognitionModal(true);
                 
-                // Show import message if species was imported
                 if (response.data.importMessage) {
                     toast.success(response.data.importMessage);
                 } else {
@@ -269,7 +287,6 @@ const ObservationForm = ({ observation = null, onClose, onSuccess, prefillData =
                 }
             }
             
-            // Fallback to search if direct import failed or no taxon ID
             if (!species) {
                 species = await findSpeciesByScientificName(result.species);
             }
@@ -424,6 +441,7 @@ const ObservationForm = ({ observation = null, onClose, onSuccess, prefillData =
                                 onChange={handleInputChange}
                                 required
                                 className="w-full bg-zinc-800 border border-gray-600 rounded px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                                data-testid="observation-form-date"
                             />
                         </div>
 
@@ -481,6 +499,7 @@ const ObservationForm = ({ observation = null, onClose, onSuccess, prefillData =
                                 type="submit"
                                 disabled={isSubmitting || !isAuthenticated}
                                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                data-testid="observation-form-submit"
                             >
                                 {isSubmitting ? "Saving..." : (observation ? "Update" : "Create")}
                             </button>
@@ -547,6 +566,7 @@ const ObservationForm = ({ observation = null, onClose, onSuccess, prefillData =
                                                 type="button"
                                                 onClick={() => handleSelectRecognitionResult(result)}
                                                 className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors text-sm cursor-pointer"
+                                                data-testid="select-recognition-result-button"
                                             >
                                                 <MapPin className="w-4 h-4" />
                                                 Select This Species

@@ -7,6 +7,7 @@ import ObservationForm from "../components/ObservationForm";
 import LoadingSpinner from "../components/LoadingSpinner";
 import axiosClient from "../API/axiosClient";
 import { useNavigate } from "react-router-dom";
+import { signalRService } from "../services/signalRService";
 
 const Observations = () => {
     const [showForm, setShowForm] = useState(false);
@@ -19,6 +20,7 @@ const Observations = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState("explore");
+    const [allObservations, setAllObservations] = useState([]);
 
     const { isAuthenticated, user } = useAuth();
     const navigate = useNavigate();
@@ -28,8 +30,10 @@ const Observations = () => {
         const fetchObservations = async () => {
             try {
                 setLoading(true);
-                const response = await axiosClient.get('/observations/explore');
+                // Get all observations including current user
+                const response = await axiosClient.get('/observations?limit=30');
                 setObservations(response.data || []);
+                setAllObservations(response.data || []);
             } catch (err) {
                 console.error('Error fetching observations:', err);
                 setError('Failed to load observations');
@@ -41,7 +45,6 @@ const Observations = () => {
         fetchObservations();
     }, []);
 
-    // Fetch user's own observations only when "my" tab is active and user is authenticated
     useEffect(() => {
         const fetchMyObservations = async () => {
             if (activeTab !== "my" || !isAuthenticated || !user) {
@@ -61,12 +64,52 @@ const Observations = () => {
         fetchMyObservations();
     }, [activeTab, isAuthenticated, user]);
 
-    // Switch to explore tab if not authenticated
     useEffect(() => {
         if (!isAuthenticated && activeTab === "my") {
             setActiveTab("explore");
         }
     }, [isAuthenticated, activeTab]);
+
+    // Initialize SignalR connection
+    useEffect(() => {
+        const initializeSignalR = async () => {
+            await signalRService.startConnection();
+            
+            // Listen for real-time updates
+            signalRService.onNewObservation((observation) => {
+                setObservations(prev => [observation, ...prev]);
+                if (user && observation.userId === user.id) {
+                    setMyObservations(prev => [observation, ...prev]);
+                }
+            });
+
+            signalRService.onObservationUpdated((updatedObservation) => {
+                setObservations(prev => 
+                    prev.map(obs => obs.id === updatedObservation.id ? updatedObservation : obs)
+                );
+                setMyObservations(prev => 
+                    prev.map(obs => obs.id === updatedObservation.id ? updatedObservation : obs)
+                );
+            });
+
+            signalRService.onObservationDeleted((observationId) => {
+                setObservations(prev => 
+                    prev.filter(obs => obs.id !== observationId)
+                );
+                setMyObservations(prev => 
+                    prev.filter(obs => obs.id !== observationId)
+                );
+            });
+        };
+
+        initializeSignalR();
+
+        // Cleanup SignalR connection on component unmount
+        return () => {
+            signalRService.removeAllListeners();
+            signalRService.stopConnection();
+        };
+    }, [user]);
 
     const handleCreateNew = () => {
         if (!isAuthenticated) {
@@ -97,8 +140,7 @@ const Observations = () => {
     const handleFormSuccess = () => {
         setShowForm(false);
         setEditingObservation(null);
-        // Refresh observations after creating/editing
-        window.location.reload();
+        // Remove the window.location.reload() since we'll get updates via SignalR
     };
 
     // Filter observations based on search and filters
@@ -123,6 +165,36 @@ const Observations = () => {
 
     const filteredObservations = getFilteredObservations(observations);
     const filteredMyObservations = getFilteredObservations(myObservations);
+
+    // Stats calculations
+    const calculateStats = (observations) => {
+        const now = new Date();
+        const thisMonth = observations.filter(obs => {
+            const obsDate = new Date(obs.dateObserved);
+            return obsDate.getMonth() === now.getMonth() && 
+                   obsDate.getFullYear() === now.getFullYear();
+        }).length;
+
+        const uniqueSpecies = new Set(observations.map(obs => obs.speciesId)).size;
+
+        return {
+            total: observations.length,
+            uniqueSpecies,
+            thisMonth
+        };
+    };
+
+    // Get stats based on the active tab
+    const getStats = () => {
+        if (activeTab === "my") {
+            return calculateStats(myObservations);
+        } else {
+            // For explore tab, use allObservations for stats
+            return calculateStats(allObservations);
+        }
+    };
+
+    const stats = getStats();
 
     if (loading && observations.length === 0) {
         return (
@@ -150,6 +222,7 @@ const Observations = () => {
                 <button
                     onClick={handleCreateNew}
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                    data-testid="new-observation-button"
                 >
                     <Plus className="w-5 h-5" />
                     {isAuthenticated ? "New Observation" : "Login to Share"}
@@ -179,7 +252,7 @@ const Observations = () => {
                         }`}
                     >
                         <User className="w-4 h-4" />
-                        My Observations ({myObservations.length})
+                        My Observations
                     </button>
                 )}
             </div>
@@ -191,26 +264,19 @@ const Observations = () => {
                         {activeTab === "explore" ? "Community Observations" : "My Observations"}
                     </h3>
                     <p className="text-3xl font-bold text-white">
-                        {activeTab === "explore" ? observations.length : myObservations.length}
+                        {stats.total}
                     </p>
                 </div>
                 <div className="bg-zinc-800 p-4 rounded-lg">
                     <h3 className="text-lg font-medium text-gray-300">Unique Species</h3>
                     <p className="text-3xl font-bold text-white">
-                        {new Set((activeTab === "explore" ? observations : myObservations)
-                            .map(obs => obs.speciesId)).size}
+                        {stats.uniqueSpecies}
                     </p>
                 </div>
                 <div className="bg-zinc-800 p-4 rounded-lg">
                     <h3 className="text-lg font-medium text-gray-300">This Month</h3>
                     <p className="text-3xl font-bold text-white">
-                        {(activeTab === "explore" ? observations : myObservations)
-                            .filter(obs => {
-                                const obsDate = new Date(obs.dateObserved);
-                                const now = new Date();
-                                return obsDate.getMonth() === now.getMonth() && 
-                                       obsDate.getFullYear() === now.getFullYear();
-                            }).length}
+                        {stats.thisMonth}
                     </p>
                 </div>
             </div>
@@ -241,6 +307,7 @@ const Observations = () => {
                             value={filterDate}
                             onChange={(e) => setFilterDate(e.target.value)}
                             className="w-full bg-zinc-800 border border-gray-600 rounded px-10 py-2 text-white focus:border-blue-500 focus:outline-none"
+                            data-testid="observations-filter-date"
                         />
                     </div>
                     

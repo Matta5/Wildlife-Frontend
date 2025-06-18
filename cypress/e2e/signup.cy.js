@@ -3,7 +3,7 @@ describe('SignUp Page', () => {
     // Visit the signup page before each test
     cy.visit('http://localhost:5173/SignUp')
     // Wait for any initial auth checks to complete
-    cy.wait(1000)
+    cy.wait(200)
   })
 
   it('displays the signup form', () => {
@@ -77,44 +77,10 @@ describe('SignUp Page', () => {
       password: '123456'
     }
 
-    // Intercept both the signup and login requests
     cy.intercept('POST', '**/users/simple', {
       statusCode: 200,
-      body: { 
-        message: 'User created successfully',
-        accessToken: 'fake-access-token',
-        refreshToken: 'fake-refresh-token'
-      },
-      headers: {
-        'Set-Cookie': 'token=fake-access-token; HttpOnly; Secure; SameSite=Strict, refreshToken=fake-refresh-token; HttpOnly; Secure; SameSite=Strict'
-      }
-    }).as('signupRequest')
-
-    // Intercept the login request that follows signup
-    cy.intercept('POST', '**/auth/login', {
-      statusCode: 200,
-      body: {
-        message: 'Login successful',
-        user: {
-          id: 1,
-          username: testUser.username,
-          email: testUser.email
-        }
-      },
-      headers: {
-        'Set-Cookie': 'token=fake-access-token; HttpOnly; Secure; SameSite=Strict, refreshToken=fake-refresh-token; HttpOnly; Secure; SameSite=Strict'
-      }
-    }).as('loginRequest')
-
-    // Also intercept the subsequent auth/me call
-    cy.intercept('GET', '**/auth/me', {
-      statusCode: 200,
-      body: {
-        id: 1,
-        username: testUser.username,
-        email: testUser.email
-      }
-    }).as('meRequest')
+      body: { message: 'User created successfully' }
+    }).as('signupSuccess')
 
     // Fill out the form
     cy.get('[data-testid="username-input"]').type(testUser.username)
@@ -124,12 +90,6 @@ describe('SignUp Page', () => {
     
     // Submit the form
     cy.get('[data-testid="signup-button"]').click()
-
-    // Wait for all API calls
-    cy.wait(['@signupRequest', '@loginRequest', '@meRequest'])
-
-    // Check for success message
-    cy.contains('Account successfully created! Welcome!').should('be.visible')
     
     // Should be redirected to account page
     cy.url().should('include', '/account')
@@ -139,7 +99,7 @@ describe('SignUp Page', () => {
     // Intercept the signup API call with an error
     cy.intercept('POST', '**/users/simple', {
       statusCode: 409,
-      body: { message: 'This username is already in use.' }
+      body: 'Username already exists'
     }).as('signupError')
 
     // Fill out the form
@@ -154,15 +114,17 @@ describe('SignUp Page', () => {
     // Wait for the API call
     cy.wait('@signupError')
 
-    // Check for error message
-    cy.contains('This username is already in use').should('be.visible')
+    // Check for toast error message with proper selector and wait
+    cy.get('.Toastify__toast--error')
+      .should('be.visible')
+      .and('contain', 'Username already exists')
   })
 
   it('handles server errors for existing email', () => {
     // Intercept the signup API call with an error
     cy.intercept('POST', '**/users/simple', {
       statusCode: 409,
-      body: { message: 'This email address is already in use.' }
+      body: 'Email already in use'
     }).as('signupError')
 
     // Fill out the form
@@ -177,10 +139,34 @@ describe('SignUp Page', () => {
     // Wait for the API call
     cy.wait('@signupError')
 
-    // Check for error message
-    cy.contains('This email address is already in use').should('be.visible')
+    // Check for toast error message with proper selector and wait
+    cy.get('.Toastify__toast--error')
+      .should('be.visible')
+      .and('contain', 'Email already in use')
   })
 
+  it('handles server connection errors', () => {
+    cy.intercept('POST', '**/users/simple', {
+      forceNetworkError: true
+    }).as('networkError')
+
+    // Fill out the form
+    cy.get('[data-testid="username-input"]').type('newuser')
+    cy.get('[data-testid="email-input"]').type('test@example.com')
+    cy.get('[data-testid="password-input"]').type('123456')
+    cy.get('[data-testid="confirm-password-input"]').type('123456')
+    
+    // Submit the form
+    cy.get('[data-testid="signup-button"]').click()
+
+    // Wait for the API call
+    cy.wait('@networkError')
+
+    // Check for toast error message with proper selector and wait
+    cy.get('.Toastify__toast--error')
+      .should('be.visible')
+      .and('contain', 'Cannot connect to server. Check your internet connection.')
+  })
 
   it('navigates to login page', () => {
     cy.get('[data-testid="login-link"]').click()

@@ -28,7 +28,7 @@ export const ObservationsProvider = ({ children }) => {
         setLoading(true);
         setError(null);
         try {
-            const response = await axiosClient.get("/observations?limit=30");
+            const response = await axiosClient.get("/observations/explore?limit=30");
             setObservations(response.data);
             
             // Calculate stats for current user
@@ -79,11 +79,11 @@ export const ObservationsProvider = ({ children }) => {
             } else {
                 // Use JSON endpoint for observations without images
                 const jsonData = {
-                    speciesId: observationData.speciesId,
+                    speciesId: parseInt(observationData.speciesId),
                     body: observationData.body || "",
-                    dateObserved: observationData.dateObserved,
-                    latitude: observationData.latitude,
-                    longitude: observationData.longitude
+                    dateObserved: observationData.dateObserved || null,
+                    latitude: observationData.latitude ? parseFloat(observationData.latitude) : null,
+                    longitude: observationData.longitude ? parseFloat(observationData.longitude) : null
                 };
 
                 response = await axiosClient.post("/observations/simple", jsonData);
@@ -118,7 +118,16 @@ export const ObservationsProvider = ({ children }) => {
         setLoading(true);
         setError(null);
         try {
-            const response = await axiosClient.patch(`/observations/${id}`, updateData);
+            // Convert string numbers to actual numbers or null
+            const formattedData = {
+                speciesId: updateData.speciesId ? parseInt(updateData.speciesId) : null,
+                body: updateData.body,
+                dateObserved: updateData.dateObserved || null,
+                latitude: updateData.latitude ? parseFloat(updateData.latitude) : null,
+                longitude: updateData.longitude ? parseFloat(updateData.longitude) : null
+            };
+
+            const response = await axiosClient.patch(`/observations/${id}`, formattedData);
             
             // Refresh observations after updating
             await fetchObservations();
