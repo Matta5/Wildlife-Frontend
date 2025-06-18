@@ -129,6 +129,14 @@ const ObservationDetail = () => {
                         </h1>
                         <p className="text-gray-400 italic">
                             {observation.species?.scientificName}
+                            {observation.species && (
+                                <button
+                                    onClick={() => navigate(`/species/${observation.speciesId}`)}
+                                    className="ml-2 text-blue-400 hover:text-blue-300 text-sm"
+                                >
+                                    View Species Details
+                                </button>
+                            )}
                         </p>
                     </div>
                 </div>

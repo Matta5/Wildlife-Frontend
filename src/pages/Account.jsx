@@ -26,29 +26,19 @@ export default function AccountPage() {
     const { logout } = useAuth();
     const navigate = useNavigate();
 
+    // Separate effect for fetching user data
     useEffect(() => {
         const fetchUserData = async () => {
             try {
-                const [userRes, observationsRes] = await Promise.all([
-                    axiosClient.get("/auth/me"),
-                    user?.id ? axiosClient.get(`/observations/GetAllFromUser/${user.id}`) : Promise.resolve({ data: [] })
-                ]);
-                
+                const userRes = await axiosClient.get("/auth/me");
                 setUser(userRes.data);
-                
-                if (userRes.data?.id) {
-                    const observations = observationsRes.data || [];
-                    setUserObservations(observations);
-                    
-                    // Calculate stats
-                    const uniqueSpecies = new Set(observations.map(obs => obs.speciesId)).size;
-                    setObservationStats({
-                        totalObservations: observations.length,
-                        uniqueSpeciesObserved: uniqueSpecies
-                    });
-                }
             } catch (error) {
                 console.error("Error fetching user data:", error);
+                if (error.response?.status === 401) {
+                    logout();
+                } else {
+                    toast.error("Failed to load user data. Please try again later.");
+                }
                 setUser(null);
             } finally {
                 setLoading(false);
@@ -56,7 +46,39 @@ export default function AccountPage() {
         };
 
         fetchUserData();
-    }, [user?.id]);
+    }, []); // Only run once on mount
+
+    // Separate effect for fetching observations
+    useEffect(() => {
+        const fetchUserObservations = async () => {
+            if (!user?.id) return;
+
+            try {
+                const observationsRes = await axiosClient.get(`/observations/GetAllFromUser/${user.id}`);
+                const observations = observationsRes.data || [];
+                setUserObservations(observations);
+                
+                // Calculate stats
+                const uniqueSpecies = new Set(observations.map(obs => obs.speciesId)).size;
+                setObservationStats({
+                    totalObservations: observations.length,
+                    uniqueSpeciesObserved: uniqueSpecies
+                });
+            } catch (error) {
+                console.error("Error fetching user observations:", error);
+                if (error.response?.status !== 404) {
+                    toast.error("Failed to load observations. Please try again later.");
+                }
+                setUserObservations([]);
+                setObservationStats({
+                    totalObservations: 0,
+                    uniqueSpeciesObserved: 0
+                });
+            }
+        };
+
+        fetchUserObservations();
+    }, [user?.id]); // Only run when user ID changes
 
     const handleUsernamePatch = async () => {
         if (!newUsername.trim()) {
@@ -269,20 +291,22 @@ export default function AccountPage() {
                         ))}
                     </ul>
                 )}
+                {userObservations.length > 5 && (
                 <div className="mt-4 text-center">
                     <button
                         className="px-4 py-2 border border-gray-600 text-white rounded hover:bg-zinc-800"
                         onClick={() => navigate("/observations")}
                     >
+
                         View All
                     </button>
-                </div>
+                </div>)}
             </div>
 
             {/* Username Edit Popup */}
             {isEditingName && (
-                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-                    <div className="bg-zinc-900 p-6 rounded-lg shadow-lg w-full max-w-sm">
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+                    <div className="bg-zinc-900 p-6 rounded-lg shadow-lg w-full max-w-sm border border-zinc-700/70">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-bold text-white">Edit Username</h2>
                             <button onClick={() => setIsEditingName(false)}>
@@ -317,9 +341,8 @@ export default function AccountPage() {
 
             {/* Profile Picture Upload Modal */}
             {isEditingPicture && (
-                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-                    <div
-                        className="bg-zinc-900 p-6 rounded-lg shadow-lg w-full max-w-md"
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+                    <div className="bg-zinc-900 p-6 rounded-lg shadow-lg w-full max-w-sm border border-zinc-700/70"
                         onDragOver={(e) => e.preventDefault()}
                         onDrop={handleDrop}
                     >

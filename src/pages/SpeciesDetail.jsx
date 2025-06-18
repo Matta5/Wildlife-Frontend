@@ -175,7 +175,11 @@ export default function SpeciesDetail() {
                             <h2 className="text-xl font-semibold mb-4">Recent Observations</h2>
                             <div className="space-y-4">
                                 {species.observations.map((observation) => (
-                                    <div key={observation.id} className="bg-zinc-800 rounded-lg p-4">
+                                    <div 
+                                        key={observation.id} 
+                                        className="bg-zinc-800 rounded-lg p-4 cursor-pointer hover:bg-zinc-700 transition-colors"
+                                        onClick={() => navigate(`/observations/${observation.id}`)}
+                                    >
                                         <div className="flex items-start justify-between mb-3">
                                             <div className="flex items-center gap-3">
                                                 {observation.user?.profilePicture && (
@@ -201,6 +205,9 @@ export default function SpeciesDetail() {
                                                     </div>
                                                 </div>
                                             </div>
+                                            <button className="text-blue-400 hover:text-blue-300">
+                                                View Details
+                                            </button>
                                         </div>
                                         {observation.body && (
                                             <p className="text-gray-300">{observation.body}</p>

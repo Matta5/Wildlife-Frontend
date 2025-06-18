@@ -87,6 +87,7 @@ const ObservationForm = ({ observation = null, onClose, onSuccess, prefillData =
             ...prev,
             speciesId: species.id
         }));
+        setError(""); // Clear any existing species-related error
     };
 
     const handleSpeciesClear = () => {
@@ -103,8 +104,6 @@ const ObservationForm = ({ observation = null, onClose, onSuccess, prefillData =
             setImageFile(file);
             const previewUrl = URL.createObjectURL(file);
             setPreviewImage(previewUrl);
-            // Automatically trigger recognition when image is uploaded
-            setTimeout(() => handleRecognition(), 100);
         }
     };
 
@@ -115,8 +114,6 @@ const ObservationForm = ({ observation = null, onClose, onSuccess, prefillData =
             setImageFile(file);
             const previewUrl = URL.createObjectURL(file);
             setPreviewImage(previewUrl);
-            // Automatically trigger recognition when image is dropped
-            setTimeout(() => handleRecognition(), 100);
         }
     };
 
@@ -128,7 +125,8 @@ const ObservationForm = ({ observation = null, onClose, onSuccess, prefillData =
             return;
         }
 
-        if (!selectedSpecies || !selectedSpecies.id) {
+        // Only validate species selection on form submission
+        if (!selectedSpecies || !formData.speciesId) {
             setError("Please select a species from the search results");
             return;
         }
@@ -163,21 +161,15 @@ const ObservationForm = ({ observation = null, onClose, onSuccess, prefillData =
                     await updateObservationImage(observation.id, imageFile);
                 }
                 
-                toast.success("Observation updated successfully", {
-                    onClose: () => {
-                        onSuccess?.();
-                        onClose();
-                    }
-                });
+                toast.success("Observation updated successfully");
+                onSuccess?.();
+                onClose();
             } else {
                 // Create new observation - send all fields
                 await createObservation(formData, imageFile);
-                toast.success("Observation created successfully", {
-                    onClose: () => {
-                        onSuccess?.();
-                        onClose();
-                    }
-                });
+                toast.success("Observation created successfully");
+                onSuccess?.();
+                onClose();
             }
         } catch (err) {
             setError(err.response?.data?.message || "Failed to save observation");
@@ -190,22 +182,19 @@ const ObservationForm = ({ observation = null, onClose, onSuccess, prefillData =
         setPreviewImage(null);
     };
 
-    const handleRecognition = async () => {
-        if (!imageFile) {
-            toast.error("Please upload an image first.");
-            return;
-        }
-
+    const handleRecognition = async (fileToRecognize = null) => {
+        const fileForRecognition = fileToRecognize || imageFile;
+        
         if (isRecognizing) {
             return;
         }
 
         setIsRecognizing(true);
         const formData = new FormData();
-        formData.append("ImageFile", imageFile);
+        formData.append("ImageFile", fileForRecognition);
 
         try {
-            console.log("Starting recognition for image:", imageFile.name);
+            console.log("Starting recognition for image:", fileForRecognition.name);
             const response = await axiosClient.post("/identify", formData);
             console.log("Recognition response:", response.data);
 
@@ -310,8 +299,8 @@ const ObservationForm = ({ observation = null, onClose, onSuccess, prefillData =
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-            <div className="bg-zinc-900 rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-zinc-900 rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-zinc-700/70">
                 <div className="p-6">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-bold text-white">
@@ -386,7 +375,7 @@ const ObservationForm = ({ observation = null, onClose, onSuccess, prefillData =
                                         <div className="mt-3">
                                             <button
                                                 type="button"
-                                                onClick={handleRecognition}
+                                                onClick={() => handleRecognition()}
                                                 disabled={isRecognizing}
                                                 className={`flex items-center justify-center gap-2 px-4 py-2 rounded font-medium transition-colors ${
                                                     isRecognizing
@@ -510,8 +499,8 @@ const ObservationForm = ({ observation = null, onClose, onSuccess, prefillData =
 
             {/* Recognition Results Modal */}
             {showRecognitionModal && recognitionResults && (
-                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999] p-4">
-                    <div className="bg-zinc-900 rounded-lg shadow-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+                <div className="fixed inset-0 bg-black/50 back drop-blur-sm flex items-center justify-center z-[9999] p-4">
+                    <div className="bg-zinc-900 rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-zinc-700/70">
                         <div className="p-6">
                             <div className="flex justify-between items-center mb-6">
                                 <h3 className="text-xl font-bold text-white">Wildlife Recognition Results</h3>
