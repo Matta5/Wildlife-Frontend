@@ -48,10 +48,13 @@ jobs:
         CYPRESS_BASE_URL: http://localhost:${{ steps.get-port.outputs.PORT }}
       with:
         browser: chrome
-        headless: true
+        headed: false
         component: false
         record: false
         publish-summary: true
+        config: |
+          video: true
+          videosFolder: cypress/videos
 
     - name: Upload Cypress screenshots
       uses: actions/upload-artifact@v4
