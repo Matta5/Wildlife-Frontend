@@ -1,0 +1,87 @@
+name: E2E Tests and Docker Deploy
+
+on:
+  push:
+    branches: [ main]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  e2e-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build application
+      run: npm run build
+
+    - name: Start application
+      run: npm run preview &
+      # Preview serveert je build, alternatief: npm run dev &
+
+    - name: Wait for server
+      run: npx wait-on http://localhost:4173 --timeout 60000
+      # Pas poort aan als je preview op andere poort draait
+
+    - name: Run Cypress E2E tests
+      uses: cypress-io/github-action@v6
+      with:
+        start: npm run preview
+        wait-on: 'http://localhost:4173'
+        wait-on-timeout: 120
+        browser: chrome
+        headless: true
+
+    - name: Upload Cypress screenshots
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: cypress-screenshots
+        path: cypress/screenshots
+
+    - name: Upload Cypress videos
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: cypress-videos
+        path: cypress/videos
+
+  docker-build:
+    needs: e2e-tests
+    runs-on: ubuntu-latest
+    if: success() # Alleen als e2e tests slagen
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: |
+          jouwusername/jouwapp:latest
+          jouwusername/jouwapp:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
