@@ -198,6 +198,6 @@ describe('SignUp Page', () => {
 
   it('navigates to login page', () => {
     cy.get('[data-testid="login-link"]').click()
-    cy.url().should('include', 'http://localhost:5173/Login')
+    cy.url().should('include', '/Login')
   })
 }) 
