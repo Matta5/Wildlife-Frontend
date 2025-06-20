@@ -21,7 +21,7 @@ describe('Observations Page', () => {
             body: []
         }).as('userObservations')
 
-        cy.visit('http://localhost:5173/observations')
+        cy.visit('/observations')
         cy.wait(['@authCheck', '@loadObservations'])
     })
 
@@ -67,7 +67,7 @@ describe('Observations Page', () => {
         }).as('getObservations')
 
         // Reload page to get mock data
-        cy.visit('http://localhost:5173/observations')
+        cy.visit('/observations')
         cy.wait(['@authCheck', '@getObservations'])
 
         cy.contains('Red Fox').should('be.visible')
@@ -126,7 +126,7 @@ describe('Observations Page', () => {
         }).as('getObservations')
 
         // Reload page to get mock data
-        cy.visit('http://localhost:5173/observations')
+        cy.visit('/observations')
         cy.wait(['@authCheck', '@getObservations'])
 
         // Verify observations are displayed

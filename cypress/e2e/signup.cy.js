@@ -1,7 +1,7 @@
 describe('SignUp Page', () => {
   beforeEach(() => {
     // Visit the signup page before each test
-    cy.visit('http://localhost:5173/SignUp')
+    cy.visit('/SignUp')
     // Wait for any initial auth checks to complete
     cy.wait(200)
   })
