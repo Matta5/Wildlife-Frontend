@@ -29,13 +29,35 @@ jobs:
     - name: Start application and get port
       id: get-port
       run: |
+        # Start the preview server and capture output
         npm run preview > preview.log 2>&1 &
-        sleep 5
-        PORT=$(grep -o 'http://localhost:[0-9]*' preview.log | cut -d':' -f3)
+        # Give it some time to start
+        sleep 10
+        # Check if the log file exists and has content
+        if [ ! -f preview.log ] || [ ! -s preview.log ]; then
+          echo "Error: preview.log is empty or doesn't exist"
+          exit 1
+        fi
+        # Print the log content for debugging
+        echo "Preview log content:"
+        cat preview.log
+        # Extract the port using a more specific pattern
+        PORT=$(grep -o 'Local:   http://localhost:[0-9]\+' preview.log | grep -o '[0-9]\+$' || echo "4174")
+        echo "Detected port: $PORT"
+        # Verify the port is not empty
+        if [ -z "$PORT" ]; then
+          echo "Error: Could not detect port, using default 4174"
+          PORT=4174
+        fi
         echo "PORT=$PORT" >> "$GITHUB_OUTPUT"
+        # Verify the server is actually running
+        curl -s -o /dev/null -w "%{http_code}" http://localhost:$PORT || echo "Warning: Server not responding yet"
 
     - name: Wait for server
-      run: npx wait-on http://localhost:${{ steps.get-port.outputs.PORT }} --timeout 60000
+      run: |
+        PORT=${{ steps.get-port.outputs.PORT }}
+        echo "Waiting for server on port $PORT..."
+        npx wait-on http://localhost:$PORT --timeout 60000 --verbose
 
     - name: Run Cypress E2E tests
       uses: cypress-io/github-action@v6
