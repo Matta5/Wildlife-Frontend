@@ -77,10 +77,29 @@ describe('SignUp Page', () => {
       password: '123456'
     }
 
+    // Intercept the signup request
     cy.intercept('POST', '**/users/simple', {
       statusCode: 200,
-      body: { message: 'User created successfully' }
+      body: {
+        message: "User created successfully",
+        accessToken: "fake-test-access-token",
+        refreshToken: "fake-test-refresh-token"
+      }
     }).as('signupSuccess')
+
+    // Intercept the automatic login request that follows
+    cy.intercept('POST', '**/auth/login', {
+      statusCode: 200,
+      body: {
+        user: {
+          id: 1,
+          username: testUser.username,
+          email: testUser.email
+        },
+        accessToken: "fake-test-access-token",
+        refreshToken: "fake-test-refresh-token"
+      }
+    }).as('loginSuccess')
 
     // Fill out the form
     cy.get('[data-testid="username-input"]').type(testUser.username)
@@ -90,6 +109,15 @@ describe('SignUp Page', () => {
     
     // Submit the form
     cy.get('[data-testid="signup-button"]').click()
+    
+    // Wait for both API calls to complete
+    cy.wait('@signupSuccess')
+    cy.wait('@loginSuccess')
+
+    // Check for success toast
+    cy.get('.Toastify__toast--success')
+      .should('be.visible')
+      .and('contain', 'Account successfully created! Welcome!')
     
     // Should be redirected to account page
     cy.url().should('include', '/account')
