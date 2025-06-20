@@ -1,8 +1,8 @@
-const { defineConfig } = require("cypress");
+import { defineConfig } from "cypress";
 
-module.exports = defineConfig({
+export default defineConfig({
   e2e: {
-    baseUrl: process.env.CYPRESS_BASE_URL || 'http://localhost:4174',
+    baseUrl: process.env.CYPRESS_BASE_URL || 'http://localhost:5173',
     setupNodeEvents(on, config) {
       // implement node event listeners here
     },
