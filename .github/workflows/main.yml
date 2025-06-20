@@ -52,9 +52,7 @@ jobs:
         component: false
         record: false
         publish-summary: true
-        config: |
-          video: true
-          videosFolder: cypress/videos
+        config: '{"video": true, "videosFolder": "cypress/videos"}'
 
     - name: Upload Cypress screenshots
       uses: actions/upload-artifact@v4
