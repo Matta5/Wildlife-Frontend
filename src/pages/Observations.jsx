@@ -25,7 +25,6 @@ const Observations = () => {
     const { isAuthenticated, user } = useAuth();
     const navigate = useNavigate();
 
-    // Fetch observations from explore endpoint
     useEffect(() => {
         const fetchObservations = async () => {
             try {
@@ -189,7 +188,6 @@ const Observations = () => {
         if (activeTab === "my") {
             return calculateStats(myObservations);
         } else {
-            // For explore tab, use allObservations for stats
             return calculateStats(allObservations);
         }
     };
@@ -290,35 +288,50 @@ const Observations = () => {
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <label htmlFor="search-input" className="sr-only">
+                            Search observations
+                        </label>
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" aria-hidden="true" />
                         <input
+                            id="search-input"
                             type="text"
                             placeholder="Search species, notes, or users..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full bg-zinc-800 border border-gray-600 rounded px-10 py-2 text-white focus:border-blue-500 focus:outline-none"
+                            aria-label="Search observations"
                         />
                     </div>
                     
                     <div className="relative">
-                        <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <label htmlFor="date-filter" className="sr-only">
+                            Filter by date
+                        </label>
+                        <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" aria-hidden="true" />
                         <input
+                            id="date-filter"
                             type="date"
                             value={filterDate}
                             onChange={(e) => setFilterDate(e.target.value)}
                             className="w-full bg-zinc-800 border border-gray-600 rounded px-10 py-2 text-white focus:border-blue-500 focus:outline-none"
                             data-testid="observations-filter-date"
+                            aria-label="Filter observations by date"
                         />
                     </div>
                     
                     <div className="relative">
-                        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <label htmlFor="location-filter" className="sr-only">
+                            Filter by location coordinates
+                        </label>
+                        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" aria-hidden="true" />
                         <input
+                            id="location-filter"
                             type="text"
                             placeholder="Filter by coordinates..."
                             value={filterLocation}
                             onChange={(e) => setFilterLocation(e.target.value)}
                             className="w-full bg-zinc-800 border border-gray-600 rounded px-10 py-2 text-white focus:border-blue-500 focus:outline-none"
+                            aria-label="Filter observations by location coordinates"
                         />
                     </div>
                 </div>

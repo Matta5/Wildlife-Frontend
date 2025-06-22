@@ -4,6 +4,7 @@ import { ArrowLeft, Calendar, MapPin, Camera } from "lucide-react";
 import axiosClient from "../API/axiosClient";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { useAuth } from "../contexts/AuthContext";
+import ProfileImage from '../components/ProfileImage';
 
 export default function UserDetail() {
     const { id } = useParams();
@@ -86,10 +87,11 @@ export default function UserDetail() {
                     <div className="relative group">
                         <div className="h-24 w-24 rounded-full overflow-hidden bg-gray-700">
                             {user.profilePicture && (
-                                <img
+                                <ProfileImage
                                     src={user.profilePicture}
                                     alt={user.username}
-                                    className="h-full w-full object-cover"
+                                    size="md"
+                                    className="rounded-full"
                                 />
                             )}
                         </div>

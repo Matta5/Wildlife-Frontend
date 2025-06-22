@@ -1,5 +1,3 @@
-// App.js
-import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Layout from "./components/Layout";
@@ -7,7 +5,6 @@ import Home from "./pages/Home";
 import Observations from "./pages/Observations";
 import ObservationDetail from "./pages/ObservationDetail";
 import NoPage from "./pages/NoPage";
-import User from "./pages/User";
 import UserDetail from "./pages/UserDetail";
 import SignUp from "./pages/SignUp";
 import Login from "./pages/Login";
@@ -42,7 +39,6 @@ const ProtectedRoute = ({ children }) => {
 // Public only route component (voor login/signup)
 const PublicOnlyRoute = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
-  const location = useLocation();
 
   if (isLoading) {
     return <div className="loading">Loading...</div>;

@@ -31,9 +31,7 @@ export default function Recognition() {
         formData.append("ImageFile", uploadFile);
 
         try {
-            console.log("Starting recognition for image:", uploadFile.name);
             const response = await axiosClient.post("/identify", formData);
-            console.log("Recognition response:", response.data);
 
             if (response.data.success) {
                 // Transform the backend response to match frontend expectations
@@ -71,8 +69,6 @@ export default function Recognition() {
                 toast.error(response.data.errorMessage || "An error occurred during recognition.");
             }
         } catch (error) {
-            console.error("Recognition error:", error);
-            console.error("Response data:", error.response?.data);
 
             if (error.response?.status === 413) {
                 toast.error("File is too large. Please try a smaller file.");
@@ -156,7 +152,6 @@ export default function Recognition() {
                 return response.data[0];
             }
         } catch (error) {
-            console.error("Error finding species:", error);
         }
         return null;
     };
@@ -187,10 +182,8 @@ export default function Recognition() {
                     const importResponse = await axiosClient.post(`/api/species/import/${result.taxonId}`);
                     if (importResponse.data) {
                         species = importResponse.data;
-                        console.log("Species imported directly:", species);
                     }
                 } catch (importError) {
-                    console.log("Direct import failed, falling back to search:", importError);
                 }
             }
             
@@ -205,7 +198,6 @@ export default function Recognition() {
                 toast.info(`Species "${result.species}" not found in database. You can import it from iNaturalist.`);
             }
         } catch (error) {
-            console.error("Error finding species:", error);
             toast.error("Failed to find species details.");
         }
     };

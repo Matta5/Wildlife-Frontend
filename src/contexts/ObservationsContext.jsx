@@ -28,7 +28,7 @@ export const ObservationsProvider = ({ children }) => {
         setLoading(true);
         setError(null);
         try {
-            const response = await axiosClient.get("/observations/explore?limit=30");
+            const response = await axiosClient.get("/observations?limit=30");
             setObservations(response.data);
             
             // Calculate stats for current user

@@ -5,6 +5,8 @@ import { useAuth } from "../contexts/AuthContext";
 import { useObservations } from "../contexts/ObservationsContext";
 import { X, Pencil } from "lucide-react";
 import { toast } from 'react-toastify';
+import { optimizeImage } from '../utils/imageOptimizer';
+import ProfileImage from '../components/ProfileImage';
 
 export default function AccountPage() {
     const [isEditingName, setIsEditingName] = useState(false);
@@ -164,20 +166,22 @@ export default function AccountPage() {
         }
     };
 
-    const handleDrop = (e) => {
+    const handleDrop = async (e) => {
         e.preventDefault();
         const file = e.dataTransfer.files[0];
         if (file && file.type.startsWith("image/")) {
-            setUploadFile(file);
-            setPreviewImage(URL.createObjectURL(file));
+            const optimizedFile = await optimizeImage(file);
+            setUploadFile(optimizedFile);
+            setPreviewImage(URL.createObjectURL(optimizedFile));
         }
     };
 
-    const handleFileSelect = (e) => {
+    const handleFileSelect = async (e) => {
         const file = e.target.files[0];
         if (file && file.type.startsWith("image/")) {
-            setUploadFile(file);
-            setPreviewImage(URL.createObjectURL(file));
+            const optimizedFile = await optimizeImage(file);
+            setUploadFile(optimizedFile);
+            setPreviewImage(URL.createObjectURL(optimizedFile));
         }
     };
 
@@ -202,16 +206,29 @@ export default function AccountPage() {
             {/* Profile Card */}
             <div className="bg-zinc-900 shadow rounded-lg p-6">
                 <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-                    <div className="relative group cursor-pointer" onClick={() => setIsEditingPicture(true)}>
+                    <div className="relative group cursor-pointer" 
+                        onClick={() => setIsEditingPicture(true)}
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Edit profile picture"
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                setIsEditingPicture(true);
+                            }
+                        }}
+                    >
                         <div className="h-24 w-24 rounded-full overflow-hidden bg-gray-700 relative">
                             {user.profilePicture && (
-                                <img
+                                <ProfileImage
                                     src={user.profilePicture}
-                                    className="h-full w-full object-cover"
+                                    alt={user.username}
+                                    size="md"
+                                    className="rounded-full"
                                 />
                             )}
                             <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Pencil className="text-white" />
+                                <Pencil className="text-white" aria-hidden="true" />
                             </div>
                         </div>
                     </div>
@@ -219,10 +236,13 @@ export default function AccountPage() {
                     <div className="flex-1 space-y-1">
                         <div className="flex items-center gap-2">
                             <h1 className="text-2xl font-bold">{user.username}</h1>
-                            <button onClick={() => {
-                                setNewUsername(user.username);
-                                setIsEditingName(true);
-                            }}>
+                            <button 
+                                onClick={() => {
+                                    setNewUsername(user.username);
+                                    setIsEditingName(true);
+                                }}
+                                aria-label="Edit username"
+                            >
                                 <Pencil className="text-gray-400 hover:text-white w-4 h-4" />
                             </button>
                         </div>
@@ -362,7 +382,12 @@ export default function AccountPage() {
                             />
                             <label htmlFor="profile-pic-upload" className="cursor-pointer">
                                 {previewImage ? (
-                                    <img src={previewImage} className="h-24 w-24 object-cover rounded-full" />
+                                    <ProfileImage
+                                        src={previewImage}
+                                        alt="Preview"
+                                        size="md"
+                                        className="rounded-full"
+                                    />
                                 ) : (
                                     "Drag & drop image or click to browse"
                                 )}
